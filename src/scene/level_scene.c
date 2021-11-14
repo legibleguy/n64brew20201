@@ -65,11 +65,10 @@ void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* defin
     if(numBots > 0){
         levelScene->bots = malloc(sizeof(struct AIController) * numBots);
         for (unsigned i = humanPlayerCount; i < playercount; ++i) {
-            //struct LevelBase* startBase = levelGetClosestBase(&levelScene->players[i].transform.position, levelScene, i);
-            struct LevelBase* startBase = getClosestUncapturedBase(levelScene->bases, levelScene->baseCount, &levelScene->players[i].transform.position, i);
+            struct LevelBase* startBase = ai_getClosestUncapturedBase(levelScene->bases, levelScene->baseCount, &levelScene->players[i].transform.position, i);
 
-            InitAI(&levelScene->bots[i - humanPlayerCount], i, i);
-            setTargetBase(&levelScene->bots[i - humanPlayerCount], startBase);
+            ai_Init(&levelScene->bots[i - humanPlayerCount], &definition->pathfinding, i, i);
+            ai_setTargetBase(&levelScene->bots[i - humanPlayerCount], startBase, 0, 0);
         }
     }
 
@@ -117,31 +116,7 @@ void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* defin
 
     osWritebackDCache(&gSplitScreenViewports[0], sizeof(gSplitScreenViewports));
 }
-/*
-struct LevelBase* levelGetClosestBase(struct Vector3* closeTo, struct LevelScene* levelScene, unsigned team ){
-    struct LevelBase* bases = levelScene->bases;
-    struct Vector3 basePos;
-    basePos.x = bases[0].position.x;
-    basePos.y = bases[0].position.y;
-    basePos.z = bases[0].position.z;
-    
-    float minDist = vector3DistSqrd(&basePos, closeTo);
-    unsigned int minIndex = 0;
-    for(unsigned int i = 1; i < levelScene->baseCount; i++){
-        if(levelBaseGetFactionID(&bases[i]) == team) continue;
-        basePos.x = bases[i].position.x;
-        basePos.y = bases[i].position.y;
-        basePos.z = bases[i].position.z;
-        float currDist = vector3DistSqrd(&basePos, closeTo);
-        if(currDist < minDist){
-            minIndex = i;
-            minDist = currDist;
-        }
-    }
-    struct LevelBase* outBase = &bases[minIndex];
-    return outBase;
-}
-*/
+
 void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderState) {
     spriteSetLayer(renderState, LAYER_SOLID_COLOR, gUseSolidColor);
     spriteSetLayer(renderState, LAYER_COMMAND_BUTTONS, gUseCommandIcons);
@@ -286,14 +261,14 @@ void levelSceneCollectBotPlayerInput(struct LevelScene* levelScene, unsigned pla
 
     //if current target base has been captured by our team, tell the team leadr to switch to another base
     if(levelScene->bots[botIndex].targetBase != NULL && levelBaseGetFactionID(levelScene->bots[botIndex].targetBase) == levelScene->players[playerIndex].team.teamNumber) {
-        struct LevelBase* newBase = getClosestUncapturedBase(
+        struct LevelBase* newBase = ai_getClosestUncapturedBase(
             levelScene->bases, 
             levelScene->baseCount, 
             &levelScene->players[playerIndex].transform.position, 
             playerIndex
         );
         if(newBase != NULL) {
-            setTargetBase(&levelScene->bots[botIndex], newBase);
+            ai_setTargetBase(&levelScene->bots[botIndex], newBase, 1, &levelScene->players[playerIndex].transform.position);
         }
     }
 
@@ -327,7 +302,7 @@ void levelSceneCollectBotPlayerInput(struct LevelScene* levelScene, unsigned pla
         }
     }
 
-    moveAItowardsTarget(&levelScene->bots[botIndex], 
+    ai_moveTowardsTarget(&levelScene->bots[botIndex], 
     &levelScene->players[playerIndex].transform.position, playerInput);
 
     if(playerInput->targetWorldDirection.x == 0 && playerInput->targetWorldDirection.y == 0 && playerInput->targetWorldDirection.z == 0){
