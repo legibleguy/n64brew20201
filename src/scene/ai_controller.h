@@ -20,6 +20,7 @@ struct AIController{
     unsigned teamIndex;
     unsigned lastPathfidningIndex;
     unsigned isUsingPathfinding;
+    unsigned numMinions;
 
     struct Vector3 currTarget;
     struct LevelBase* targetBase;
@@ -29,7 +30,7 @@ struct AIController{
 void ai_moveTowardsTarget(struct AIController* inController, struct Vector3* currLocation, struct PlayerInput* inputRef);
 void ai_Init(struct AIController* inController, struct PathfindingDefinition* pathfinder, unsigned playerIndex, unsigned teamIndex);
 void ai_setTargetBase(struct AIController* inController, struct LevelBase* inBase, unsigned short bBuildPath, struct Vector3* currPlayerPosition);
-struct LevelBase* ai_getClosestUncapturedBase(struct LevelBase* bases, unsigned baseCount, struct Vector3* closeTo, unsigned team);
+struct LevelBase* ai_getClosestUncapturedBase(struct AIController* inController, struct LevelBase* bases, unsigned baseCount, struct Vector3* closeTo, unsigned team, unsigned short usePathfinding);
 
 
 #endif
