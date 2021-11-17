@@ -21,20 +21,10 @@
 #include <stdbool.h>
 
 #define PLAYER_MAX_HP                              8.0f
-#define PLAYER_RESPAWN_TIME                        5.0f
+#define PLAYER_MIN_RESPAWN_TIME                    2.0f
+#define PLAYER_RESPAWN_PER_BASE                    5.0f
 #define PLAYER_INVINCIBILITY_TIME                  0.5f
 #define INVINCIBLE_JUMP_HEIGHT                     1.0f
-
-
-unsigned short gJumpClipIds[] = {
-    SOUNDS_DOG_JUMP_GRUNT_1,
-    SOUNDS_DOG_JUMP_GRUNT_2,
-    SOUNDS_DOG_JUMP_GRUNT_3,
-    SOUNDS_DOG_JUMP_GRUNT_4,
-    SOUNDS_DOG_JUMP_GRUNT_5,
-    SOUNDS_DOG_JUMP_GRUNT_6,
-    SOUNDS_DOG_JUMP_GRUNT_7,
-};
 
 struct CollisionCircle gPlayerCollider = {
     {CollisionShapeTypeCircle},
@@ -77,6 +67,7 @@ void playerStartAttack(struct Player* player) {
     if (!player->attackCollider) {
         struct Vector3 position3D;
         struct Vector2 position;
+        soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.attackSounds), 0);
         playerCalculateAttackLocation(player, player->attackInfo, &position3D);
         position.x = position3D.x;
         position.y = position3D.z;
@@ -122,9 +113,10 @@ void playerEnterAttackState(struct Player* player, struct PlayerAttackInfo* atta
 
 void playerEnterDeadState(struct Player* player) {
     playerEndAttack(player);
+    soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.deathSounds), 0);
     skAnimatorRunClip(&player->animator, factionGetAnimation(player->team.teamNumber, PlayerAnimationDie), 0);
     player->state = playerStateDead;
-    player->stateTimer = PLAYER_RESPAWN_TIME;
+    player->stateTimer = PLAYER_MIN_RESPAWN_TIME + (player->controlledBases - 1) * PLAYER_RESPAWN_PER_BASE;
     player->collider->collisionLayers = 0;
 }
 
@@ -132,7 +124,7 @@ void playerEnterJumpState(struct Player* player) {
     player->velocity.y = PLAYER_JUMP_IMPULSE;
     player->state = playerStateJump;
     player->animationSpeed = 1.0f;
-    soundPlayerPlay(gJumpClipIds[randomInRange(0, sizeof(gJumpClipIds)/sizeof(&gJumpClipIds))], 0);
+    soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.jumpSounds), 0);
     skAnimatorRunClip(&player->animator, factionGetAnimation(player->team.teamNumber, PlayerAnimationJump), 0);
 }
 
@@ -246,7 +238,9 @@ void playerInit(struct Player* player, unsigned playerIndex, unsigned team, stru
     player->flags = 0;
     damageHandlerInit(&player->damageHandler, PLAYER_MAX_HP);
     player->walkSoundEffect = SOUND_ID_NONE;
+    player->idleSoundEffect = SOUND_ID_NONE;
     player->animationSpeed = 1.0f;
+    player->controlledBases = 0;
 
     player->velocity = gZeroVec;
     player->rightDir = gRight2;
@@ -457,11 +451,22 @@ void playerStateWalk(struct Player* player, struct PlayerInput* input) {
 
     if (isMoving != hasWalkingSound) {
         if (isMoving) {
-            player->walkSoundEffect = soundPlayerPlay(SOUNDS_DOG_WALKING_LOOP_1, SoundPlayerFlagsLoop);
+            player->walkSoundEffect = soundPlayerPlay(gTeamFactions[player->playerIndex]->playerSounds.walkSound, SoundPlayerFlagsLoop);
+            soundPlayerSetVolume(player->walkSoundEffect, 0.25f);
         } else {
             soundPlayerStop(&player->walkSoundEffect);
         }
     }
+
+    // int hasIdleSound = player->idleSoundEffect != SOUND_ID_NONE;
+
+    // if (isMoving == hasIdleSound) {
+    //     if (isMoving) {
+    //         soundPlayerStop(&player->idleSoundEffect);
+    //     } else {
+    //         player->idleSoundEffect = soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.idleSounds), SoundPlayerFlagsLoop);
+    //     }
+    // }
 
     playerUpdateOther(player, input);
 }
@@ -496,7 +501,7 @@ void playerRender(struct Player* player, struct RenderState* renderState) {
     gDPPipeSync(renderState->dl++);
     gSPDisplayList(renderState->dl++, gTeamPalleteTexture[isDamageFlash ? DAMAGE_PALLETE_INDEX : player->team.teamNumber]);
     skRenderObject(&player->armature, renderState);
-    gSPPopMatrix(renderState->dl++, 1);
+    gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
 
     recallCircleRender(&player->recallCircle, renderState, player->team.teamNumber);
     if (player->attackCollider) {
@@ -506,7 +511,9 @@ void playerRender(struct Player* player, struct RenderState* renderState) {
 
 void playerApplyDamage(struct Player* player, float amount) {
     if (player->transform.position.y < INVINCIBLE_JUMP_HEIGHT) {
-        damageHandlerApplyDamage(&player->damageHandler, amount, PLAYER_INVINCIBILITY_TIME);
+        if (damageHandlerApplyDamage(&player->damageHandler, amount, PLAYER_INVINCIBILITY_TIME)) {
+            soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.damageSounds), 0);
+        }
     }
 }
 

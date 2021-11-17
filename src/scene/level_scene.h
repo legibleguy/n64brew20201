@@ -14,7 +14,7 @@
 #include "menu/basecommandmenu.h"
 #include "itemdrop.h"
 #include "controlscrambler.h"
-#include "ai_controller.h"
+#include "ai/ai_controller.h"
 
 #define MAX_MINIONS_PER_BASE       3
 #define TARGET_FINDER_COUNT        2
@@ -37,6 +37,8 @@ struct LevelScene {
     unsigned char botsCount;
     unsigned char winningTeam;
 
+    unsigned short levelFlags;
+
     struct LevelBase *bases;
     unsigned int baseCount;
 
@@ -53,12 +55,13 @@ struct LevelScene {
 
     enum LevelSceneState state;
     float stateTimer;
+    float knockoutTimer;
 };
 
 struct Player* levelGetClosestEnemyPlayer(struct LevelScene* forScene, struct Vector3* closeTo, unsigned team, float* outDist);
 struct Minion* levelGetClosestEnemyMinion(struct LevelScene* forScene, struct Vector3* closeTo, unsigned team, float* outDist);
 
-void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* definition, unsigned int playercount, unsigned char humanPlayerCount);
+void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* definition, unsigned int playercount, unsigned char humanPlayerCount, enum LevelMetadataFlags flags);
 void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderState);
 void levelSceneUpdate(struct LevelScene* levelScene);
 

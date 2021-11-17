@@ -4,6 +4,7 @@
 #include "graphics/gfx.h"
 #include "util/rom.h"
 #include "util/memory.h"
+#include "menu/endgamemenu.h"
 
 enum SceneState gSceneState;
 enum SceneState gNextSceneState;
@@ -26,6 +27,7 @@ void sceneLoadLevel(struct GameConfiguration* gameConfig) {
     LOAD_SEGMENT(static, gStaticSegment);
     LOAD_SEGMENT(gameplaymenu, gMenuSegment);
     LOAD_SEGMENT(characters, gCharacterSegment);
+    LOAD_SEGMENT(fonts, gFontSegment);
 
     struct LevelMetadata* metadata = gameConfig->level;
 
@@ -37,7 +39,11 @@ void sceneLoadLevel(struct GameConfiguration* gameConfig) {
 
     struct LevelDefinition* definition = levelDefinitionUnpack(metadata->fullDefinition, gLevelSegment, gThemeSegment);
 
+<<<<<<< HEAD
     levelSceneInit(&gCurrentLevel, definition, /*gameConfig->playerCount*/2, 2/*gameConfig->humanPlayerCount*/);
+=======
+    levelSceneInit(&gCurrentLevel, definition, gameConfig->playerCount, gameConfig->humanPlayerCount, metadata->flags);
+>>>>>>> 1b9d6501214d8d5ced566b50e11d4ee22ecb67c6
     gSceneState = SceneStateInLevel;
 }
 
@@ -48,12 +54,20 @@ void sceneQueueLoadLevel(struct GameConfiguration* nextLevel) {
 
 void sceneQueueMainMenu() {
     gNextSceneState = SceneStateInMainMenu;
+    gMainMenuTargetState = MainMenuStateSelectingPlayerCount;
+}
+
+void sceneQueuePostGameScreen(unsigned winningTeam, unsigned teamCount) {
+    gNextSceneState = SceneStateInMainMenu;
+    endGameMenuInit(&gMainMenu.endGameMenu, winningTeam, teamCount);
+    gMainMenuTargetState = MainMenuStatePostGame;
 }
 
 void sceneLoadMainMenu() {
     LOAD_SEGMENT(static, gStaticSegment);
     LOAD_SEGMENT(mainmenu, gMenuSegment);
     LOAD_SEGMENT(characters, gCharacterSegment);
+    LOAD_SEGMENT(fonts, gFontSegment);
     mainMenuInit(&gMainMenu);
     gSceneState = SceneStateInMainMenu;
 }

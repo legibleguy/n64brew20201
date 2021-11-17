@@ -28,6 +28,7 @@ struct CollisionCircle gItemDropCollider = {
 
 void itemDropInit(struct ItemDrop* itemDrop) {
     itemDrop->state = ItemDropDisabled;
+    itemDrop->stateTimer = 0.0f;
     itemDrop->collision = 0;
 }
 
@@ -71,6 +72,7 @@ void itemDropCollide(struct DynamicSceneOverlap* overlap) {
             struct TeamEntity* entity = teamEntityGetFromCollision(overlap->otherEntry);
 
             if (entity->entityType == TeamEntityTypePlayer) {
+                drop->state = ItemDropStateCollected;
                 itemDropCleanup(drop);
                 levelSceneApplyScrambler(&gCurrentLevel, entity->teamNumber, randomInRange(0, ControlsScramblerTypeCount));
             }
@@ -126,11 +128,16 @@ void itemDropUpdate(struct ItemDrop* itemDrop) {
             break;
         case ItemDropDamaging:
             itemDrop->state = ItemDropStateWaiting;
+            break;
         case ItemDropStateWaiting:
             itemDrop->stateTimer -= gTimeDelta;
             if (itemDrop->stateTimer < 0.0f) {
                 itemDropCleanup(itemDrop);
             }
+            break;
+        case ItemDropStateCollected:
+            itemDropCleanup(itemDrop);
+            break;
         default:
             break;
     }
@@ -162,7 +169,7 @@ void itemDropRender(struct ItemDrop* itemDrop, struct RenderState* renderState) 
         transformToMatrixL(&transform, matrix);
         gSPMatrix(renderState->dl++, matrix, G_MTX_PUSH | G_MTX_MODELVIEW | G_MTX_MUL);
         gSPDisplayList(renderState->dl++, ItemPickup_ItemDropBase_mesh);
-        gSPPopMatrix(renderState->dl++, 1);
+        gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
     }
 
     if (itemDrop->state == ItemDropStateWaiting && (itemDrop->stateTimer > FLICKER_AWAY_TIME || mathfMod(gTimePassed, FLICKER_AWAY_PERIOD) < FLICKER_AWAY_PERIOD * 0.5f)) {
@@ -177,7 +184,7 @@ void itemDropRender(struct ItemDrop* itemDrop, struct RenderState* renderState) 
         transformToMatrixL(&transform, matrix);
         gSPMatrix(renderState->transparentDL++, matrix, G_MTX_PUSH | G_MTX_MODELVIEW | G_MTX_MUL);
         gSPDisplayList(renderState->transparentDL++, ItemPickup_ItemDrop_mesh);
-        gSPPopMatrix(renderState->transparentDL++, 1);
+        gSPPopMatrix(renderState->transparentDL++, G_MTX_MODELVIEW);
     } else if (itemDrop->state == ItemDropStateFalling) {
         Mtx* matrix = renderStateRequestMatrices(renderState, 1);
 
@@ -190,7 +197,7 @@ void itemDropRender(struct ItemDrop* itemDrop, struct RenderState* renderState) 
         transformToMatrixL(&transform, matrix);
         gSPMatrix(renderState->transparentDL++, matrix, G_MTX_PUSH | G_MTX_MODELVIEW | G_MTX_MUL);
         gSPDisplayList(renderState->transparentDL++, ItemPickup_Target_mesh);
-        gSPPopMatrix(renderState->transparentDL++, 1);
+        gSPPopMatrix(renderState->transparentDL++, G_MTX_MODELVIEW);
     }
 }
 

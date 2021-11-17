@@ -8,6 +8,8 @@ enum BaseCommandMenuFlags {
     BaseCommandMenuFlagsShowingOpenCommand = (1 << 0),
     BaseCommandMenuFlagsShowingMenu = (1 << 1),
     BaseCommandMenuFlagsShowingUpgrades = (1 << 2),
+    BaseCommandMenuFlagsForceHideOpenCommand = (1 << 3),
+    BaseCommandMenuFlagsAnimating = (1 << 4),
 };
 
 struct BaseCommandMenu {
@@ -15,6 +17,7 @@ struct BaseCommandMenu {
     unsigned short flags;
     char selectedCommand;
     char selectedUpgrade;
+    float openAnimation;
 };
 
 void baseCommandMenuInit(struct BaseCommandMenu* menu);

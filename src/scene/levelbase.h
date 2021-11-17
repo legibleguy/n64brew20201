@@ -8,6 +8,7 @@
 #include "teamentity.h"
 #include "leveldefinition.h"
 #include "game_defs.h"
+#include "audio/soundplayer.h"
 
 #define BASE_GFX_PER_BASE   12
 
@@ -26,6 +27,7 @@ struct LevelBase {
     float stateTimeLeft;
     float captureProgress;
     float lastCaptureProgress;
+    SoundID captureSound;
     unsigned char state;
     unsigned char minionCount;
     unsigned char baseId;
@@ -37,6 +39,7 @@ struct LevelBase {
     unsigned char issueCommandTimer;
     unsigned char followPlayer;
     unsigned char baseControlCount[MAX_PLAYERS];
+    unsigned char prevControlCount[MAX_PLAYERS];
 };
 
 extern struct LevelBase* gPlayerAtBase[MAX_PLAYERS];
@@ -46,8 +49,8 @@ void levelBaseUpdate(struct LevelBase* base);
 void levelBaseRender(struct LevelBase* base, struct RenderState* renderState);
 void levelBaseReleaseMinion(struct LevelBase* base);
 void levelBaseStartUpgrade(struct LevelBase* base, enum LevelBaseState nextState);
-void levelBaseSetDefaultCommand(struct LevelBase* base, unsigned command);
-int levelBaseGetFactionID(struct LevelBase* base);
+void levelBaseSetDefaultCommand(struct LevelBase* base, unsigned command, unsigned fromPlayer);
+int levelBaseGetTeam(struct LevelBase* base);
 int levelBaseIsBeingCaptured(struct LevelBase* base);
 
 #endif

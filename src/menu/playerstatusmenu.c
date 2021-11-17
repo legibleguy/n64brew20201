@@ -7,7 +7,7 @@
 #include "gbfont.h"
 #include "graphics/gfx.h"
 
-void playerStatusMenuRender(struct Player* player, struct RenderState* renderState, int winningTeam, unsigned short* screenPos) {
+void playerStatusMenuRender(struct Player* player, struct RenderState* renderState, int winningTeam, float knockoutTime, unsigned short* screenPos) {
     char message[20];
     message[0] = '\0';
     int scaleShift = 0;
@@ -21,10 +21,17 @@ void playerStatusMenuRender(struct Player* player, struct RenderState* renderSta
         }
 
         scaleShift = 1;
+    } else if (knockoutTime >= 0.0f && player->controlledBases) {
+        sprintf(message, "Victory in %d", (int)(knockoutTime + 1));
     } else if (!playerIsAlive(player)) {
-        int respawnIn = (int)(player->stateTimer + 1.0f);
-        sprintf(message, "Respawn in %d", respawnIn);
-        barHeight = screenPos[3] - screenPos[1];
+        if (player->controlledBases == 0) {
+            strcpy(message, "Defeat");
+            scaleShift = 1;
+        } else {
+            int respawnIn = (int)(player->stateTimer + 1.0f);
+            sprintf(message, "Respawn in %d", respawnIn);
+            barHeight = screenPos[3] - screenPos[1];
+        }
     }
 
     if (*message) {

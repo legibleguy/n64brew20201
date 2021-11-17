@@ -13,6 +13,8 @@
 #include "player.h"
 #include "game_defs.h"
 #include "events.h"
+#include "audio/clips.h"
+#include "math/mathf.h"
 
 #include "game_defs.h"
 
@@ -160,9 +162,11 @@ void levelBaseInit(struct LevelBase* base, struct BaseDefinition* definition, un
     base->issueCommandTimer = 0;
     base->followPlayer = TEAM_NONE;
     base->stateTimeLeft = SPAWN_TIME;
+    base->captureSound = SOUND_ID_NONE;
 
     for (unsigned i = 0; i < MAX_PLAYERS; ++i) {
         base->baseControlCount[i] = 0;
+        base->prevControlCount[i] = 0;
     }
 
     if (base->team.teamNumber != TEAM_NONE) {
@@ -190,6 +194,10 @@ void levelBaseInit(struct LevelBase* base, struct BaseDefinition* definition, un
     // base->defaultComand = MinionCommandAttack;
 }
 
+float levelBaseCaptureAudioFreq(struct LevelBase* base) {
+    return powf(2.0f, base->captureProgress / CAPTURE_TIME) * 0.5f;
+}
+
 void levelBaseUpdate(struct LevelBase* base) {
     base->lastCaptureProgress = base->captureProgress;
     
@@ -206,16 +214,24 @@ void levelBaseUpdate(struct LevelBase* base) {
                 break;
             }
         }
+    }
 
+    for (unsigned i = 0; i < MAX_PLAYERS; ++i) {
+        base->prevControlCount[i] = base->baseControlCount[i];
         base->baseControlCount[i] = 0;
     }
 
+    int isCapturing = 0;
+
     if (controllingTeam != TEAM_NONE) {
+        isCapturing = 1;
+
         if (controllingTeam != base->team.teamNumber) {
             base->captureProgress -= gTimeDelta * gSpawnTimeCaptureScalar[base->defenseUpgrade];
             gLastCaptureTime = gTimePassed;
 
             if (base->captureProgress <= 0.0f) {
+                isCapturing = 0;
                 base->captureProgress = 0.0f;
                 base->team.teamNumber = TEAM_NONE;
                 base->state = LevelBaseStateNeutral;
@@ -227,6 +243,7 @@ void levelBaseUpdate(struct LevelBase* base) {
 
             if (base->captureProgress >= CAPTURE_TIME) {
                 base->captureProgress = CAPTURE_TIME;
+                isCapturing = 0;
 
                 if (base->state == LevelBaseStateNeutral) {
                     base->state = LevelBaseStateSpawning;
@@ -246,6 +263,14 @@ void levelBaseUpdate(struct LevelBase* base) {
         if (base->captureProgress >= CAPTURE_TIME) {
             base->captureProgress = CAPTURE_TIME;
         }
+    }
+
+    if (!soundPlayerIsPlaying(base->captureSound) && isCapturing) {
+        base->captureSound = soundPlayerPlay(SOUNDS_FLAGCAP, 0);
+    }
+
+    if (isCapturing) {
+        soundPlayerSetPitch(base->captureSound, levelBaseCaptureAudioFreq(base));
     }
 
     switch (base->state) {
@@ -323,7 +348,7 @@ void levelBaseRender(struct LevelBase* base, struct RenderState* renderState) {
     gDPPipeSync(renderState->dl++);
     gDPSetPrimColor(renderState->dl++, 255, 255, color.r, color.g, color.b, color.a);
     gSPDisplayList(renderState->dl++, base_BasePad_mesh);
-    gSPPopMatrix(renderState->dl++, 1);
+    gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
 
     vector3Add(&poleTransform.position, &gFlagOffset, &poleTransform.position);
     poleTransform.scale = gOneVec;
@@ -331,7 +356,7 @@ void levelBaseRender(struct LevelBase* base, struct RenderState* renderState) {
     transformToMatrixL(&poleTransform, &matrix[1]);
     gSPMatrix(renderState->dl++, osVirtualToPhysical(&matrix[1]), G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH);
     gSPDisplayList(renderState->dl++, base_flag_pole_Pole_mesh);
-    gSPPopMatrix(renderState->dl++, 1);
+    gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
 
     if (base->team.teamNumber != TEAM_NONE && base->captureProgress > 0.1f) {
         poleTransform.position.y += SCENE_SCALE * poleTransform.scale.y * mathfLerp(MIN_FLAG_HEIGHT, MAX_FLAG_HEIGHT, base->captureProgress / CAPTURE_TIME);
@@ -342,7 +367,7 @@ void levelBaseRender(struct LevelBase* base, struct RenderState* renderState) {
         color = gTeamColors[base->team.teamNumber];
         gDPSetPrimColor(renderState->dl++, 255, 255, color.r, color.g, color.b, color.a);
         gSPDisplayList(renderState->dl++, base_flag_Flag_mesh);
-        gSPPopMatrix(renderState->dl++, 1);
+        gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
     }
 }
 
@@ -350,12 +375,13 @@ void levelBaseReleaseMinion(struct LevelBase* base) {
     --base->minionCount;
 }
 
-void levelBaseSetDefaultCommand(struct LevelBase* base, unsigned command) {
+void levelBaseSetDefaultCommand(struct LevelBase* base, unsigned command, unsigned fromPlayer) {
     base->defaultComand = command;
+    base->followPlayer = fromPlayer;
     base->issueCommandTimer = 2;
 }
 
-int levelBaseGetFactionID(struct LevelBase* base) {
+int levelBaseGetTeam(struct LevelBase* base) {
     if (base->state == LevelBaseStateNeutral) {
         return TEAM_NONE;
     } else {

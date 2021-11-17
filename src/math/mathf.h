@@ -15,11 +15,13 @@ float mathfMod(float input, float divisor);
 float clampf(float input, float min, float max);
 
 float sqrtf(float in);
+float powf(float base, float exp);
 
 float cosf(float in);
 float sinf(float in);
 float fabsf(float in);
 float floorf(float in);
+float ceilf(float in);
 
 float minf(float a, float b);
 float maxf(float a, float b);
