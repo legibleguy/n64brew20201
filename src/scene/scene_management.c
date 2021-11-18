@@ -39,11 +39,7 @@ void sceneLoadLevel(struct GameConfiguration* gameConfig) {
 
     struct LevelDefinition* definition = levelDefinitionUnpack(metadata->fullDefinition, gLevelSegment, gThemeSegment);
 
-<<<<<<< HEAD
-    levelSceneInit(&gCurrentLevel, definition, /*gameConfig->playerCount*/2, 2/*gameConfig->humanPlayerCount*/);
-=======
     levelSceneInit(&gCurrentLevel, definition, gameConfig->playerCount, gameConfig->humanPlayerCount, metadata->flags);
->>>>>>> 1b9d6501214d8d5ced566b50e11d4ee22ecb67c6
     gSceneState = SceneStateInLevel;
 }
 

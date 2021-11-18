@@ -74,14 +74,7 @@ void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* defin
     if(numBots > 0){
         levelScene->bots = malloc(sizeof(struct AIController) * numBots);
         for (unsigned i = humanPlayerCount; i < playercount; ++i) {
-<<<<<<< HEAD
-            struct LevelBase* startBase = ai_getClosestUncapturedBase(NULL, levelScene->bases, levelScene->baseCount, &levelScene->players[i].transform.position, i, 0);
-
-            ai_Init(&levelScene->bots[i - humanPlayerCount], &definition->pathfinding, i, i);
-            ai_setTargetBase(&levelScene->bots[i - humanPlayerCount], startBase, 0, 0);
-=======
             ai_Init(&levelScene->bots[i - humanPlayerCount], &definition->pathfinding, i, i, levelScene->baseCount);
->>>>>>> 1b9d6501214d8d5ced566b50e11d4ee22ecb67c6
         }
     }
     
@@ -128,13 +121,10 @@ void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* defin
     // dynamicMusicUseMarkers(gIntensityMarkers, sizeof(gIntensityMarkers) / sizeof(*gIntensityMarkers));
 
     osWritebackDCache(&gSplitScreenViewports[0], sizeof(gSplitScreenViewports));
-<<<<<<< HEAD
-=======
 
     if (flags & LevelMetadataFlagsTutorial) {
         tutorialInit(levelScene);
     }
->>>>>>> 1b9d6501214d8d5ced566b50e11d4ee22ecb67c6
 }
 
 void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderState) {
@@ -283,68 +273,6 @@ void levelSceneUpdateMusic(struct LevelScene* levelScene) {
     }
 }
 
-<<<<<<< HEAD
-void levelSceneCollectBotPlayerInput(struct LevelScene* levelScene, unsigned playerIndex, struct PlayerInput* playerInput) {
-    unsigned botIndex = playerIndex - levelScene->humanPlayerCount;
-
-    //if current target base has been captured by our team, tell the team leader to switch to another base
-    if(levelScene->bots[botIndex].targetBase != NULL && levelBaseGetFactionID(levelScene->bots[botIndex].targetBase) == levelScene->players[playerIndex].team.teamNumber) {
-        struct LevelBase* newBase = ai_getClosestUncapturedBase(
-            &levelScene->bots[botIndex],
-            levelScene->bases, 
-            levelScene->baseCount, 
-            &levelScene->players[playerIndex].transform.position, 
-            playerIndex,
-            1
-        );
-        if(newBase != NULL) {
-            ai_setTargetBase(&levelScene->bots[botIndex], newBase, 1, &levelScene->players[playerIndex].transform.position);
-        }
-    }
-
-    //if the player just got hit 
-    if(levelScene->bots[botIndex].attackTarget == NULL && levelScene->players[playerIndex].damageHandler.damageTimer > 0.0f){
-        float minionDist;
-        float playerDist;
-
-        struct Player* playerEnt = levelGetClosestEnemyPlayer(
-            levelScene,
-            &levelScene->players[playerIndex].transform.position,
-            playerIndex,
-            &playerDist
-        );
-
-        struct Minion* minionEnt = levelGetClosestEnemyMinion(
-            levelScene,
-            &levelScene->players[playerIndex].transform.position,
-            playerIndex,
-            &minionDist
-        );
-
-        if(minionEnt && minionDist < playerDist) {
-            if(minionEnt->team.teamNumber != levelScene->players[playerIndex].team.teamNumber) {
-                levelScene->bots[botIndex].attackTarget = (struct TeamEntity*)minionEnt;
-            }
-        } else {
-            if(playerEnt->team.teamNumber != levelScene->players[playerIndex].team.teamNumber) {
-                levelScene->bots[botIndex].attackTarget = (struct TeamEntity*)playerEnt;
-            }
-        }
-    }
-
-    ai_moveTowardsTarget(&levelScene->bots[botIndex], 
-    &levelScene->players[playerIndex].transform.position, playerInput);
-
-    if(playerInput->targetWorldDirection.x == 0 && playerInput->targetWorldDirection.y == 0 && playerInput->targetWorldDirection.z == 0){
-        playerInputNoInput(playerInput);
-        levelScene->players[playerIndex].velocity.x = 0;
-        levelScene->players[playerIndex].velocity.y = 0;
-        levelScene->players[playerIndex].velocity.z = 0;
-    } 
-}
-
-=======
->>>>>>> 1b9d6501214d8d5ced566b50e11d4ee22ecb67c6
 void levelSceneCollectHumanPlayerInput(struct LevelScene* levelScene, unsigned playerIndex, struct PlayerInput* playerInput) {
     if (baseCommandMenuIsShowing(&levelScene->baseCommandMenu[playerIndex])) {
         playerInputNoInput(playerInput);
@@ -458,19 +386,18 @@ void levelSceneUpdate(struct LevelScene* levelScene) {
         }
     }
 
-
-    for (unsigned int minionIndex = 0; minionIndex < levelScene->minionCount; ++minionIndex) {
-        if (levelScene->minions[minionIndex].minionFlags & MinionFlagsActive) {
-            minionUpdate(&levelScene->minions[minionIndex]);
-        }
-    }
-
     for (unsigned int baseIndex = 0; baseIndex < levelScene->baseCount; ++baseIndex) {
         levelBaseUpdate(&levelScene->bases[baseIndex]);
     }
 
     for (unsigned finderIndex = 0; finderIndex < TARGET_FINDER_COUNT; ++finderIndex) {
         targetFinderUpdate(&levelScene->targetFinders[finderIndex]);
+    }
+
+    for (unsigned int minionIndex = 0; minionIndex < levelScene->minionCount; ++minionIndex) {
+        if (levelScene->minions[minionIndex].minionFlags & MinionFlagsActive) {
+            minionUpdate(&levelScene->minions[minionIndex]);
+        }
     }
 
     itemDropsUpdate(&levelScene->itemDrops);
@@ -484,7 +411,7 @@ void levelSceneSpawnMinion(struct LevelScene* levelScene, enum MinionType type, 
 
     do {
         if (!(levelScene->minions[levelScene->lastMinion].minionFlags & MinionFlagsActive)) {
-            minionInit(&levelScene->minions[levelScene->lastMinion], type, at, baseId, team, MinionCommandAttack, followPlayer, &levelScene->definition->pathfinding);
+            minionInit(&levelScene->minions[levelScene->lastMinion], type, at, baseId, team, MinionCommandAttack, followPlayer);
             break;
         }
         levelScene->lastMinion = (levelScene->lastMinion + 1) % levelScene->minionCount;
