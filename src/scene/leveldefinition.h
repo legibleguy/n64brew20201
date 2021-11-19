@@ -39,7 +39,7 @@ struct DecorDefinition {
 struct PathfindingDefinition {
     unsigned short nodeCount;
     struct Vector3* nodePositions;
-    char* baseNodes;
+    char *baseNodes;
     struct basesDistance* baseDistances;
     char *nextNode;
 };
