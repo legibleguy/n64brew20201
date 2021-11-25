@@ -14,7 +14,7 @@ unsigned getBaseFromNodeId(struct PathfindingDefinition* inPathfinding, unsigned
 unsigned getClosestEnemyBase(struct PathfindingDefinition* inPathfinding, struct LevelBase* allBases, unsigned numBases, unsigned closestToBase, unsigned freindlyTeam);
 unsigned getClosestNeutralBase(struct PathfindingDefinition* inPathfinding, struct LevelBase* allBases, unsigned numBases, unsigned closestToBase);
 
-#define NODE_NONE   (~0)
+#define NODE_NONE   (0xFFFF)
 #define NAV_ACCEPTANCE_RADIUS 100
 
 struct Pathfinder {

@@ -15,6 +15,7 @@
 #define LEVEL_SEGMENT       4
 #define THEME_SEGMENT       5
 #define FONT_SEGMENT        6
+#define LEVEL_WIREFRAME_SEGMENT 7
 
 #define RDP_OUTPUT_SIZE 0x4000
 
@@ -83,6 +84,7 @@ extern char* gMenuSegment;
 extern char* gLevelSegment;
 extern char* gThemeSegment;
 extern char* gFontSegment;
+extern char* gWireframeSegment;
 
 /* frame buffer, zbuffer: */
 extern unsigned short	zbuffer[];
@@ -95,7 +97,13 @@ extern u64          dram_stack[];
 
 extern void* rdp_output;
 
+extern OSTime gGFXCreateTime;
+extern OSTime gUpdateTime;
+extern OSTime gGFXRSPTime;
+
 void gfxInitSplitscreenViewport(unsigned playercount);
+
+void gfxDrawTimingInfo(struct RenderState* renderState);
 
 #endif	/* _LANGUAGE_C */
 #endif /* __simplegfx__ */

@@ -6,10 +6,17 @@
 
 struct DynamicScene gDynamicScene;
 
-void dynamicSceneInit(struct DynamicScene* scene) {
+void dynamicSceneInit(struct DynamicScene* scene, unsigned short actorCapacity) {
     zeroMemory(scene, sizeof(struct DynamicScene));
+    scene->actorCapacity = actorCapacity;
 
-    for (unsigned i = 0; i < DYNAMIC_SCENE_ENTRY_COUNT; ++i) {
+    scene->entries = malloc(sizeof(struct DynamicSceneEntry) * actorCapacity);
+    zeroMemory(scene->entries, sizeof(struct DynamicSceneEntry) * actorCapacity);
+
+    scene->entryOrder = malloc(sizeof(struct DynamicSceneEntry*) * actorCapacity);
+    scene->workingMemory = malloc(sizeof(struct DynamicSceneEntry*) * actorCapacity);
+
+    for (unsigned i = 0; i < actorCapacity; ++i) {
         gDynamicScene.entryOrder[i] = &gDynamicScene.entries[i];
     }
 }
@@ -28,13 +35,14 @@ struct DynamicSceneEntry* dynamicSceneNewEntry(
         return 0;
     }
 
-    if (gDynamicScene.actorCount < DYNAMIC_SCENE_ENTRY_COUNT) {
+    if (gDynamicScene.actorCount < gDynamicScene.actorCapacity) {
         struct DynamicSceneEntry* result = gDynamicScene.entryOrder[gDynamicScene.actorCount];
         result->forShape = forShape;
         result->data = data;
         result->center = *at;
         result->rotation.x = 1.0f;
         result->rotation.y = 0.0f;
+        result->scale = 1.0f;
         result->onCollide = onCollide;
         result->flags = flags | DynamicSceneEntryDirtyBox;
         result->collisionLayers = collisionLayers;
@@ -119,6 +127,7 @@ void dynamicSceneCheckCollision(struct DynamicSceneEntry* a, struct DynamicScene
     vector2Sub(&b->center, &a->center, &offset);
 
     int shouldRotate = 0;
+    int shouldScale = 0;
 
     if (a->forShape->type == CollisionShapeTypePolygon && (a->rotation.x != 1.0f || b->rotation.y != 0.0f)) {
         shouldRotate = 1;
@@ -132,12 +141,28 @@ void dynamicSceneCheckCollision(struct DynamicSceneEntry* a, struct DynamicScene
         vector2ComplexMul(&offset, &invRotation, &offset);
     }
 
+    if (a->forShape->type == CollisionShapeTypePolygon && a->scale != 1.0f) {
+        vector2Scale(&offset, 1.0f / a->scale, &offset);
+        shouldRotate = 1;
+    } else if (b->forShape->type == CollisionShapeTypePolygon && b->scale != 1.0f) {
+        vector2Scale(&offset, 1.0f / b->scale, &offset);
+        shouldRotate = 1;
+    }
+
     if (collisionCollidePair(a->forShape, b->forShape, &offset, ((a->flags | b->flags) & DynamicSceneEntryIsTrigger) ? 0 : &overlap.shapeOverlap)) {
         if (shouldRotate) {
             if (a->forShape->type == CollisionShapeTypePolygon) {
                 vector2ComplexMul(&overlap.shapeOverlap.normal, &a->rotation, &overlap.shapeOverlap.normal);
             } else {
                 vector2ComplexMul(&overlap.shapeOverlap.normal, &b->rotation, &overlap.shapeOverlap.normal);
+            }
+        }
+
+        if (shouldScale) {
+            if (a->forShape->type == CollisionShapeTypePolygon) {
+                overlap.shapeOverlap.depth *= a->scale;
+            } else {
+                overlap.shapeOverlap.depth *= b->scale;
             }
         }
 
@@ -162,7 +187,7 @@ void dynamicSceneCollide() {
         struct DynamicSceneEntry* currentEntry = gDynamicScene.entryOrder[i];
         
         if (currentEntry->flags & DynamicSceneEntryDirtyBox) {
-            collisionShapeBoundingBox(currentEntry->forShape, &currentEntry->center, &currentEntry->rotation, &currentEntry->boundingBox);
+            collisionShapeBoundingBox(currentEntry->forShape, &currentEntry->center, &currentEntry->rotation, currentEntry->scale, &currentEntry->boundingBox);
             currentEntry->flags &= ~DynamicSceneEntryDirtyBox;
         }
     }
@@ -230,5 +255,10 @@ void dynamicEntrySetRotation3D(struct DynamicSceneEntry* entry, struct Quaternio
     vector3Normalize(&right, &right);
     entry->rotation.x = right.x;
     entry->rotation.y = right.z;
+    entry->flags |= DynamicSceneEntryDirtyBox;
+}
+
+void dynamicEntrySetScale(struct DynamicSceneEntry* entry, float scale) {
+    entry->scale = scale;
     entry->flags |= DynamicSceneEntryDirtyBox;
 }

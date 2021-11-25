@@ -53,6 +53,7 @@ void aiPlannerScorePlan(struct LevelScene* levelScene, struct AIPlanner* planner
             ) * MINION_DISTANCE_SCALAR;
             break;  
         default:
+            plan->estimatedCost = 0.0f;
             break;
     }
 
@@ -87,6 +88,7 @@ int aiPlannerFindRandomBaseForTeam(struct LevelScene* levelScene, unsigned team,
 }
 
 int aiPlannerFindNearestBase(struct LevelScene* levelScene, unsigned fromBaseIndex, unsigned team, unsigned invertTeam) {
+    // TODO
     int result = -1;
     float distance = 0.0f;
 

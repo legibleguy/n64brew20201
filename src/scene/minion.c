@@ -22,10 +22,10 @@
 
 
 #define MINION_FOLLOW_DIST  3.0f
-#define MINION_MOVE_SPEED   (PLAYER_MOVE_SPEED * 10.0f)
+#define MINION_MOVE_SPEED   (PLAYER_BASE_MOVE_SPEED * 10.0f)
 #define MINION_ACCELERATION (PLAYER_MOVE_ACCELERATION * 2.0f)
-#define MINION_HP           2
-#define MINION_DPS          1
+#define MINION_HP           4
+#define MINION_DPS          2
 #define INVINCIBILITY_TIME  0.5f
 #define INVINCIBLE_FLASH_FREQ                      0.1f
 #define ATTACK_RADIUS       (1.0f * SCENE_SCALE)
@@ -138,7 +138,7 @@ void minionIssueCommand(struct Minion* minion, enum MinionCommand command, unsig
 }
     
 void minionUpdate(struct Minion* minion) {
-    struct Vector3* target;
+    struct Vector3* target = 0;
     float minDistance = 0.0f;
 
     damageHandlerUpdate(&minion->damageHandler);
@@ -185,11 +185,19 @@ void minionUpdate(struct Minion* minion) {
         case MinionCommandAttack:
             minDistance = SCENE_SCALE;
 
-            if(minion->pathfinder.currentNode < gCurrentLevel.definition->pathfinding.nodeCount)
-                target = &gCurrentLevel.definition->pathfinding.nodePositions[minion->pathfinder.currentNode]; 
+            if (minion->currentTarget && (minion->currentTarget->entityType != TeamEntityTypeBase || minion->pathfinder.currentNode == NODE_NONE)) {
+                target = teamEntityGetPosition(minion->currentTarget);
+                minDistance = ATTACK_RADIUS * 0.5f;
+            } else {
+                if(minion->pathfinder.currentNode < gCurrentLevel.definition->pathfinding.nodeCount) {
+                    target = &gCurrentLevel.definition->pathfinding.nodePositions[minion->pathfinder.currentNode]; 
+                }
+            }
 
             break;
     }
+    pathfinderUpdate(&minion->pathfinder, &gCurrentLevel.definition->pathfinding, &minion->transform.position, &minion->transform.position);
+
     pathfinderUpdate(&minion->pathfinder, &gCurrentLevel.definition->pathfinding, &minion->transform.position, &minion->transform.position);
 
     if (minion->attackTarget) {
@@ -286,4 +294,17 @@ void minionApplyDamage(struct Minion* minion, float amount) {
 
 int minionIsAlive(struct Minion* minion) {
     return (minion->minionFlags & MinionFlagsActive) != 0 && minion->damageHandler.hp > 0;
+}
+
+void minionSetTarget(struct Minion* minion, struct TeamEntity* value) {
+    minion->currentTarget = value;
+
+    if(minion->currentTarget && vector3DistSqrd(teamEntityGetPosition(minion->currentTarget), &minion->transform.position) > 10000){
+        if(minion->currentTarget->entityType == TeamEntityTypeBase){
+            if(minion->pathfinder.currentNode >= gCurrentLevel.definition->pathfinding.nodeCount || 
+                minion->currentTarget->teamNumber == minion->team.teamNumber){
+                pathfinderSetTarget(&minion->pathfinder, &gCurrentLevel.definition->pathfinding, &minion->transform.position, teamEntityGetPosition(minion->currentTarget));
+            }
+        }
+    }
 }

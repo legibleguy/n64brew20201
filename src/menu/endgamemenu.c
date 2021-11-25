@@ -9,6 +9,8 @@
 #include "scene/faction.h"
 #include "util/rom.h"
 #include "graphics/gfx.h"
+#include "graphics/spritefont.h"
+#include "kickflipfont.h"
 
 #define DRAW_ANIMATION_TIME 3.0f
 
@@ -28,13 +30,14 @@ void endGameMenuResetStats() {
     }
 }
 
-void endGameMenuInit(struct EndGameMenu* menu, unsigned winningTeam, unsigned teamCount) {
+void endGameMenuInit(struct EndGameMenu* menu, unsigned winningTeam, unsigned teamCount, float gameTime) {
     menu->winningTeam = winningTeam;
     menu->teamCount = teamCount;
     menu->drawAnimationTimer = 0.0f;
     menu->maxBases = 0.0f;
     menu->state = EndGameStateLoading;
     menu->captureSound = SOUND_ID_NONE;
+    menu->gameTime = (unsigned short)(gameTime * 10.0f);
     
     for (unsigned teamIndex = 0; teamIndex < teamCount; ++teamIndex) {
         statTrackerFinalize(&gPlayerBaseStats[teamIndex]);
@@ -124,6 +127,8 @@ void endGameMenuRender(struct EndGameMenu* menu, struct RenderState* renderState
     spriteSolid(renderState, LAYER_SOLID_COLOR, 20, 30, 180, 180);
     endGameDrawGraph(menu, renderState, 30, 40, 190, 200);
 
+    unsigned secondsToDisplay;
+
     if (menu->state == EndGameStateLoaded) {
         Mtx* matrix = renderStateRequestMatrices(renderState, 1);
         transformToMatrixL(&menu->winnerTransform, matrix);
@@ -131,27 +136,24 @@ void endGameMenuRender(struct EndGameMenu* menu, struct RenderState* renderState
         gSPDisplayList(renderState->dl++, gTeamPalleteTexture[menu->winningTeam]);
         skRenderObject(&menu->winnerArmature, renderState);
         gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
+
+        secondsToDisplay = menu->gameTime;
+    } else {
+        secondsToDisplay = (unsigned short)(menu->gameTime * menu->drawAnimationTimer / DRAW_ANIMATION_TIME);
     }
+
+    char timeString[16];
+    renderTimeString(secondsToDisplay, timeString);
+    unsigned timeWidth = fontMeasure(&gKickflipFont, timeString, 0);
+    fontRenderText(renderState, &gKickflipFont, timeString, 260 - timeWidth / 2, 200, 0);
 }
 
 float endGameCalcCaptureFreq(struct EndGameMenu* menu) {
-    unsigned progressIndex = (unsigned)(menu->drawAnimationTimer * STAT_COLUMNS / DRAW_ANIMATION_TIME);
-
-    if (progressIndex + 1 >= STAT_COLUMNS) {
-        progressIndex = STAT_COLUMNS - 1;
-    }
-
-    float activeBases = 0.0f;
-
-    for (unsigned i = 0; i < menu->teamCount; ++i) {
-        activeBases += menu->baseStats[i][progressIndex];
-    }
-
-    return powf(2.0f, activeBases / menu->maxBases) * 0.5f;    
+    return powf(2.0f, menu->drawAnimationTimer / DRAW_ANIMATION_TIME) * 0.5f;    
 }
 
 void endGameMenuEnterLoadedState(struct EndGameMenu* menu) {
-    menu->state = EndGameStateLoaded;
+    menu->state = EndGameStateLoadingExtraFrame;
     soundPlayerStop(&menu->captureSound);
     menu->winnerTransform = gWinnerTransform;
 
@@ -165,13 +167,17 @@ void endGameMenuEnterLoadedState(struct EndGameMenu* menu) {
         CALC_ROM_POINTER(character_animations, winningFaction->playerDefaultPose),
         winningFaction->playerBoneParent
     );
-    skAnimatorRunClip(&menu->winnerAnimator, winningFaction->playerAnimations[PlayerAnimationSelected], 0);
+    skAnimatorRunClip(&menu->winnerAnimator, winningFaction->playerAnimations[PlayerAnimationVictory], 0);
 }
 
 int endGameMenuUpdate(struct EndGameMenu* menu) {
     if (controllerGetButtonDown(0, B_BUTTON | START_BUTTON | A_BUTTON)) {
-        soundPlayerStop(&menu->captureSound);
-        return 1;
+        if (menu->drawAnimationTimer < DRAW_ANIMATION_TIME) {
+            menu->drawAnimationTimer = DRAW_ANIMATION_TIME;
+        } else {
+            soundPlayerStop(&menu->captureSound);
+            return 1;
+        }
     }
 
     switch (menu->state) {
@@ -189,10 +195,20 @@ int endGameMenuUpdate(struct EndGameMenu* menu) {
                 endGameMenuEnterLoadedState(menu);
             }
             break;
+        case EndGameStateLoadingExtraFrame:
+            menu->state = EndGameStateLoaded;
         case EndGameStateLoaded:
             skAnimatorUpdate(&menu->winnerAnimator, menu->winnerArmature.boneTransforms, 1.0f);
             break;
     }
 
     return 0;
+}
+
+void renderTimeString(unsigned short time, char* output) {
+    unsigned subSeconds = time % 10;
+    unsigned seconds = (time / 10) % 60;
+    unsigned minutes = time / 600;
+
+    sprintf(output, "%d:%02d.%d", minutes, seconds, subSeconds);
 }

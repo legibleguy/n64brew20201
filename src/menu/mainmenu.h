@@ -30,21 +30,26 @@ struct MainMenuFactionSelector {
     float rotateLerp;
 };
 
-struct MainMenu {
-    struct Camera camera;
-    struct Transform marsTransform;
+struct MainMenuSelections {
     enum MainMenuState menuState;
     enum MainMenuState targetMenuState;
     unsigned short selectedPlayerCount;
     unsigned short selectedLevel;
+};
+
+struct MainMenu {
+    struct Camera camera;
+    struct Transform marsTransform;
+    struct MainMenuSelections selections;
     struct LevelMetadata** filteredLevels;
     unsigned short levelCount;
     struct MainMenuFactionSelector factionSelection[MAX_PLAYERS];
     struct EndGameMenu endGameMenu;
+    Gfx* showingWireframe;
+    unsigned showWireframeDelay;
 };
 
-extern enum MainMenuState gMainMenuTargetState;
-
+void mainMenuInitSelections(struct MainMenu* mainMenu);
 void mainMenuInit(struct MainMenu* mainMenu);
 void mainMenuUpdate(struct MainMenu* mainMenu);
 void mainMenuRender(struct MainMenu* mainMenu, struct RenderState* renderState);

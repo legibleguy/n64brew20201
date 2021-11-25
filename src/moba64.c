@@ -18,6 +18,7 @@
 #include "audio/dynamic_music.h"
 #include "scene/minion_animations.h"
 #include "scene/faction.h"
+#include "savefile/savefile.h"
 
 /**** threads used by this file ****/
 static OSThread gameThread;
@@ -90,8 +91,11 @@ static void initproc(char *argv)
 static void gameproc(void *argv)
 {
     u32         drawbuffer = 0;
+    u32         useTimer = 0;
     u32         pendingGFX = 0;
     GFXMsg      *msg = NULL;
+
+    OSTime rcpTaskStart[2];
 
     initGame();
 
@@ -107,21 +111,37 @@ static void gameproc(void *argv)
                 /**** Create a new gfx task unless we already have 2  ****/                 
                 if (pendingGFX < 2 && !sceneIsLoading()) 
                 {
+                    OSTime drawTimeStart = osGetTime();
                     createGfxTask(&gInfo[drawbuffer]);
                     pendingGFX++;
+                    rcpTaskStart[drawbuffer] = osGetTime();
+                    gGFXCreateTime = rcpTaskStart[drawbuffer] - drawTimeStart;
                     drawbuffer ^= 1; /* switch the drawbuffer */
+
                 }
 
-                controllersTriggerRead();
+                OSTime updateTimeStart = osGetTime();
+                if (!controllerHasPendingMessage() && pendingGFX == 0) {
+                    // save when there isn't a 
+                    // message expected on the queue
+                    saveFileCheckSave();
+                }
+                if (!sceneIsLoading()) {
+                    controllersTriggerRead();
+                }
                 timeUpdateDelta();
                 skReadMessages();
-                sceneUpdate(pendingGFX > 0);
+                sceneUpdate(pendingGFX == 0 && !gShouldSave);
                 soundPlayerUpdate();
                 dynamicMusicUpdate();
+
+                gUpdateTime = osGetTime() - updateTimeStart;
 
                 break;
 
             case (OS_SC_DONE_MSG):
+                gGFXRSPTime = osGetTime() - rcpTaskStart[useTimer];
+                useTimer ^= 1;
                 pendingGFX--;        /* decrement number of pending tasks */
                 break;
                 
@@ -176,8 +196,10 @@ static void initGame(void)
     skInitDataPool(gPiHandle);
     initGFX();
     controllersInit();
+    saveFileLoad();
     initAudio();
     soundPlayerInit();
+    mainMenuInitSelections(&gMainMenu);
     sceneQueueMainMenu();
 
 #ifdef WITH_DEBUGGER

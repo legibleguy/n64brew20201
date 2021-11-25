@@ -23,7 +23,7 @@ struct PlayerAttackInfo gDogAttacks[] = {
         &doglow_animations[DOGLOW_DOGLOW_ARMATURE_001_PUNCH_002_INDEX],
     },
     [PlayerAttackJumpAttack] = {
-        DOGLOW_BOOT1_BONE, 
+        DOGLOW_TAIL_BONE, 
         0,
         0.5f,
         {0.0f, 0.65f * SCENE_SCALE, 0.0f}, 
@@ -42,12 +42,13 @@ struct SKAnimationHeader* gDogAnimations[] = {
     [PlayerAnimationJumpAttackLanding] = &doglow_animations[DOGLOW_DOGLOW_ARMATURE_001_JUMP_ATTACK_LANDING_INDEX],
     [PlayerAnimationSelectIdle] = &doglow_animations[DOGLOW_DOGLOW_ARMATURE_001_WALK_INDEX],
     [PlayerAnimationSelected] = &doglow_animations[DOGLOW_DOGLOW_ARMATURE_001_PUNCH_002_INDEX],
+    [PlayerAnimationVictory] = &doglow_animations[DOGLOW_DOGLOW_ARMATURE_001_VICTORY_INDEX],
 };
 
 struct SKAnimationEvent gDogAttack001Events[] = {
     {9, PLAYER_ATTACK_START_ID},
-    {11, PLAYER_ATTACK_WINDOW_ID},
-    {12, PLAYER_ATTACK_END_ID},
+    {14, PLAYER_ATTACK_WINDOW_ID},
+    {15, PLAYER_ATTACK_END_ID},
 };
 
 struct SKAnimationEvent gDogAttack002Events[] = {
@@ -87,7 +88,7 @@ struct Faction gDogFaction = {
         .walkSound = SOUNDS_DOG_WALKING_LOOP_1,
     },
     .moveSpeed = PLAYER_BASE_MOVE_SPEED,
-    .accel = 40.0f,
+    .accel = 20.0f,
 
     .minionMesh = Minion_DogMinion_mesh,
 };
@@ -124,17 +125,18 @@ struct SKAnimationHeader* gCatAnimations[] = {
     [PlayerAnimationWalk] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_WALK_INDEX],
     [PlayerAnimationDie] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_DIE_INDEX],
     [PlayerAnimationJump] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_JUMP_INDEX],
-    [PlayerAnimationFall] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_JUMP_PEAK_INDEX],
+    [PlayerAnimationFall] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_FALL_INDEX],
     [PlayerAnimationJumpAttack] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_JUMP_ATTACK_INDEX],
     [PlayerAnimationJumpAttackLanding] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_JUMP_ATTACK_LANDING_INDEX],
     [PlayerAnimationSelectIdle] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_WALK_INDEX],
     [PlayerAnimationSelected] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_PUNCH_003_INDEX],
+    [PlayerAnimationVictory] = &catlow_animations[CATLOW_CATLOW_ARMATURE_001_VICTORY_INDEX],
 };
 
 struct SKAnimationEvent gCatAttack001Events[] = {
-    {9, PLAYER_ATTACK_START_ID},
-    {13, PLAYER_ATTACK_WINDOW_ID},
-    {14, PLAYER_ATTACK_END_ID},
+    {7, PLAYER_ATTACK_START_ID},
+    {12, PLAYER_ATTACK_END_ID},
+    {14, PLAYER_ATTACK_WINDOW_ID},
 };
 
 struct SKAnimationEvent gCatAttack002Events[] = {
@@ -166,7 +168,7 @@ struct Faction gCatFaction = {
         .walkSound = SOUNDS_DOG_WALKING_LOOP_1,
     },
     .moveSpeed = PLAYER_BASE_MOVE_SPEED,
-    .accel = 40.0f,
+    .accel = 20.0f,
 
     .minionMesh = Minion_CatMinion_mesh,
 };

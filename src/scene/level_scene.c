@@ -12,7 +12,6 @@
 #include "graphics/sprite.h"
 #include "menu/basecommandmenu.h"
 #include "menu/playerstatusmenu.h"
-#include "menu/gbfont.h"
 #include "minimap.h"
 #include "audio/dynamic_music.h"
 #include "events.h"
@@ -34,20 +33,29 @@ struct DynamicMarker gIntensityMarkers[] = {
     {75, {127, 0, 127, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 };
 
+#define GO_SHOW_DURATION 0.5f
+#define GAME_START_DELAY 3.0f
 #define GAME_END_DELAY  5.0f
 #define LOSE_BY_KNOCKOUT_TIME   15.0f
 
-#define WIN_BY_PRESSING_START   0
+#define WIN_BY_PRESSING_START   1
 
 void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* definition, unsigned int playercount, unsigned char humanPlayerCount, enum LevelMetadataFlags flags) {
     levelScene->definition = definition;
-    dynamicSceneInit(&gDynamicScene);
+    dynamicSceneInit(
+        &gDynamicScene, 
+        definition->baseCount * (MAX_MINIONS_PER_BASE + 1) + 
+        playercount * 4 + 
+        definition->decorCount + 
+        TARGET_FINDER_COUNT + 
+        MAX_ITEM_DROP
+    );
     endGameMenuResetStats();
-    initGBFont();
 
     levelScene->levelDL = definition->sceneRender;
     levelScene->levelFlags = flags;
     levelScene->knockoutTimer = LOSE_BY_KNOCKOUT_TIME;
+    levelScene->gameTimer = 0.0f;
 
     levelScene->baseCount = definition->baseCount;
     levelScene->bases = malloc(sizeof(struct LevelBase) * definition->baseCount);
@@ -84,7 +92,7 @@ void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* defin
         struct Transform decorTransform;
         decorTransform.position = definition->decor[i].position;
         decorTransform.rotation = definition->decor[i].rotation;
-        decorTransform.scale = gOneVec;
+        vector3Scale(&gOneVec, &decorTransform.scale, definition->decor[i].scale);
         transformToMatrixL(&decorTransform, &levelScene->decorMatrices[i]);
 
         unsigned id = definition->decor[i].decorID;
@@ -95,6 +103,7 @@ void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* defin
             pos2D.y = decorTransform.position.z;
             struct DynamicSceneEntry* entry = dynamicSceneNewEntry(definition->theme->decorShapes[id], 0, &pos2D, 0, 0, CollisionLayersTangible | CollisionLayersStatic);
             dynamicEntrySetRotation3D(entry, &decorTransform.rotation);
+            dynamicEntrySetScale(entry, decorTransform.scale.x);
         }
     }
 
@@ -115,7 +124,9 @@ void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* defin
 
     gfxInitSplitscreenViewport(humanPlayerCount);
 
-    levelScene->state = LevelSceneStatePlaying;
+    levelScene->state = LevelSceneStateIntro;
+    textBoxInit(&gTextBox, "Ready?", 200, SCREEN_WD / 2, SCREEN_HT / 2);
+    levelScene->stateTimer = GAME_START_DELAY;
     levelScene->winningTeam = TEAM_NONE;
 
     // dynamicMusicUseMarkers(gIntensityMarkers, sizeof(gIntensityMarkers) / sizeof(*gIntensityMarkers));
@@ -132,7 +143,7 @@ void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderS
     spriteSetLayer(renderState, LAYER_MENU_BORDER, gUseMenuBorder);
     spriteSetLayer(renderState, LAYER_BUTTONS, gUseButtonsIcon);
     spriteSetLayer(renderState, LAYER_COMMAND_BUTTONS, gUseCommandsTexture);
-    spriteSetLayer(renderState, LAYER_GB_FONT, gUseFontTexture);
+    spriteSetLayer(renderState, LAYER_KICKFLIP_NUMBERS_FONT, gUseKickflipNumbersFont);
     spriteSetLayer(renderState, LAYER_KICKFLIP_FONT, gUseKickflipFont);
     spriteSetLayer(renderState, LAYER_UPGRADE_ICONS, gUseUpgradeIcons);
 
@@ -188,6 +199,7 @@ void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderS
             (float)viewport->vp.vscale[0] / (float)viewport->vp.vscale[1],
             controlsScramblerGetCameraRotation(&levelScene->scramblers[i])
         );
+        renderState->cameraRotation = &levelScene->cameras[i].transform.rotation;
         gSPViewport(renderState->dl++, osVirtualToPhysical(viewport));
         gDPSetScissor(
             renderState->dl++, 
@@ -206,6 +218,12 @@ void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderS
         gSPDisplayList(renderState->dl++, minionGfx);
         gSPDisplayList(renderState->dl++, itemDropsGfx);
         gSPDisplayList(renderState->dl++, renderState->transparentQueueStart);
+
+        gSPDisplayList(renderState->dl++, mat_Dizzy_Dizzy);
+        for (unsigned playerIndex = 0; playerIndex < levelScene->playerCount; ++playerIndex) {
+            controlsScramblerRender(&levelScene->scramblers[playerIndex], &levelScene->players[playerIndex], renderState);
+        }
+        gSPDisplayList(renderState->dl++, mat_revert_Dizzy_Dizzy);
 
         baseCommandMenuRender(
             &levelScene->baseCommandMenu[i], 
@@ -226,6 +244,10 @@ void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderS
     );
 
     minimapRender(levelScene, renderState, gViewportPosition[levelScene->humanPlayerCount-1].minimapLocation);
+
+    textBoxRender(&gTextBox, renderState);
+
+    gfxDrawTimingInfo(renderState);
 
     spriteFinish(renderState);
 }
@@ -301,8 +323,10 @@ void levelSceneCollectPlayerInput(struct LevelScene* levelScene, unsigned player
     if (levelScene->state == LevelSceneStatePlaying) {
         if (playerIndex < levelScene->humanPlayerCount) {
             levelSceneCollectHumanPlayerInput(levelScene, playerIndex, playerInput);
-        } else {
+        } else if (!(levelScene->levelFlags & LevelMetadataFlagsTutorial)) {
             ai_collectPlayerInput(levelScene, &levelScene->bots[playerIndex - levelScene->humanPlayerCount], playerInput);
+        } else {
+            playerInputNoInput(playerInput);
         }
     } else {
         playerInputNoInput(playerInput);
@@ -356,12 +380,16 @@ void levelSceneUpdate(struct LevelScene* levelScene) {
         levelScene->stateTimer -= gTimeDelta;
 
         if (levelScene->stateTimer < 0.0f) {
-            sceneQueuePostGameScreen(levelScene->winningTeam, levelScene->playerCount);
+            sceneQueuePostGameScreen(levelScene->winningTeam, levelScene->playerCount, levelScene->gameTimer - GAME_END_DELAY - GAME_START_DELAY);
         }
     }
 
-    for (unsigned i = 0; i < levelScene->botsCount; ++i) {
-        ai_update(levelScene, &levelScene->bots[i]);
+    levelScene->gameTimer += gTimeDelta;
+
+    if (!(levelScene->levelFlags & LevelMetadataFlagsTutorial)) {
+        for (unsigned i = 0; i < levelScene->botsCount; ++i) {
+            ai_update(levelScene, &levelScene->bots[i]);
+        }
     }
 
     for (unsigned playerIndex = 0; playerIndex < levelScene->playerCount; ++playerIndex) {
@@ -381,9 +409,29 @@ void levelSceneUpdate(struct LevelScene* levelScene) {
         playerUpdate(&levelScene->players[playerIndex], playerInput);
         leveSceneUpdateCamera(levelScene, playerIndex);
 
-        if (levelScene->levelFlags & LevelMetadataFlagsTutorial) {
+        if (levelScene->state == LevelSceneStatePlaying && levelScene->levelFlags & LevelMetadataFlagsTutorial) {
             tutorialUpdate(levelScene, playerInput);
         }
+    }
+
+    if (levelScene->state == LevelSceneStateIntro) {
+        levelScene->stateTimer -= gTimeDelta;
+
+        if (levelScene->stateTimer < 0.0f) {
+            levelScene->state = LevelSceneStatePlaying;
+            textBoxHide(&gTextBox);
+        } else if (levelScene->stateTimer < GO_SHOW_DURATION) {
+            if (!textBoxIsVisible(&gTextBox)) {
+                textBoxInit(&gTextBox, "GO!", 200, SCREEN_WD / 2, SCREEN_HT / 2);
+                gTextBox.currState = TextBoxStateShowing;
+                gTextBox.animateTimer = 0.0f;
+            }
+        } else if (levelScene->stateTimer < GAME_START_DELAY * 0.5f) {
+            textBoxHide(&gTextBox);
+        }
+
+        textBoxUpdate(&gTextBox);
+        return;
     }
 
     for (unsigned int baseIndex = 0; baseIndex < levelScene->baseCount; ++baseIndex) {
@@ -404,6 +452,7 @@ void levelSceneUpdate(struct LevelScene* levelScene) {
 
     dynamicSceneCollide();
     levelSceneUpdateMusic(levelScene);
+    textBoxUpdate(&gTextBox);
 }
 
 void levelSceneSpawnMinion(struct LevelScene* levelScene, enum MinionType type, struct Transform* at, unsigned char baseId, unsigned team, enum MinionCommand defualtCommand, unsigned followPlayer) {
@@ -470,6 +519,16 @@ int levelSceneFindWinningTeam(struct LevelScene* levelScene) {
 #endif
 
     int result = -1;
+
+    if (levelScene->humanPlayerCount == 1 && !playerIsAlive(&levelScene->players[0]) && levelScene->players[0].controlledBases == 0) {
+        result = 1;
+        for (unsigned i = 2; i < levelScene->playerCount; ++i) {
+            if (levelScene->players[i].controlledBases > levelScene->players[result].controlledBases) {
+                result = i;
+            }
+        }
+        return result;
+    }
 
     for (unsigned i = 0; i < levelScene->baseCount; ++i) {
         if (levelScene->bases[i].state != LevelBaseStateNeutral &&

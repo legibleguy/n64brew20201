@@ -730,14 +730,14 @@ struct Vector2 The_Octogon_StartingPositions[] = {
 };
 
 struct SceneBoundary The_Octogon_Boundary[] = {
-    {{-2432.96, -5623.97}, {0.297471, 0.954731}},
-    {{2432.96, -5623.97}, {-0.297471, 0.954731}},
-    {{5623.97, -2432.96}, {-0.954731, 0.297471}},
-    {{5623.97, 2432.96}, {-0.954731, -0.297471}},
-    {{2432.96, 5623.97}, {-0.297471, -0.954731}},
-    {{-2432.96, 5623.97}, {0.297471, -0.954731}},
-    {{-5623.97, 2432.96}, {0.954731, -0.297471}},
-    {{-5623.97, -2432.96}, {0.954731, 0.297471}},
+    {{5.69358e-06, -6382.02}, {-0.297471, 0.954731}, 5096.64},
+    {{4865.92, -4865.92}, {-0.954731, 0.297471}, 5096.64},
+    {{6382.02, 0}, {-0.954731, -0.297471}, 5096.64},
+    {{4865.92, 4865.92}, {-0.297471, -0.954731}, 5096.64},
+    {{5.69358e-06, 6382.02}, {0.297471, -0.954731}, 5096.64},
+    {{-4865.92, 4865.92}, {0.954731, -0.297471}, 5096.64},
+    {{-6382.02, 0}, {0.954731, 0.297471}, 5096.64},
+    {{-4865.92, -4865.92}, {0.297471, 0.954731}, 5096.64},
 };
 
 struct DecorDefinition The_Octogon_Decor[] = {
@@ -746,7 +746,7 @@ struct Vector3 The_Octogon_PathingNodes[] = {
 };
 char The_Octogon_BasesPathNodes[] = {
 };
-struct basesDistance The_Octogon_basePathNodeDistnaces[] = {
+unsigned short The_Octogon_NodeDistances[] = {
 };
 char The_Octogon_NextNode[] = {
 };
@@ -761,6 +761,6 @@ struct LevelDefinition The_Octogon_Definition = {
     .sceneRender = The_Octogon_model_gfx,
     .theme = &MarsTheme,
     .staticScene = {The_Octogon_Boundary, 8},
-    .pathfinding = {.nodeCount = 0, .baseNodes = The_Octogon_BasesPathNodes, .baseDistances = The_Octogon_basePathNodeDistnaces, .nodePositions = The_Octogon_PathingNodes, .nextNode = The_Octogon_NextNode},
+    .pathfinding = {.nodeCount = 0, .baseNodes = The_Octogon_BasesPathNodes, .nodeDistances = The_Octogon_NodeDistances, .nodePositions = The_Octogon_PathingNodes, .nextNode = The_Octogon_NextNode},
 };
 

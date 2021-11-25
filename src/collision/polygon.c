@@ -4,7 +4,7 @@
 
 #define EDGE_LERP_TOLERANCE 0.1f
 
-void collisionPolygonBoundingBox(struct CollisionPolygon* shape, struct Vector2* at, struct Vector2* rotation, struct Box2D* outuput) {
+void collisionPolygonBoundingBox(struct CollisionPolygon* shape, struct Vector2* at, struct Vector2* rotation, float scale, struct Box2D* outuput) {
     vector2ComplexMul(&shape->edges[0].corner, rotation, &outuput->min);
     outuput->max = outuput->min;
 
@@ -14,6 +14,9 @@ void collisionPolygonBoundingBox(struct CollisionPolygon* shape, struct Vector2*
         vector2Min(&outuput->min, &edgePos, &outuput->min);
         vector2Max(&outuput->max, &edgePos, &outuput->max);
     }
+
+    vector2Scale(&outuput->min, scale, &outuput->min);
+    vector2Scale(&outuput->max, scale, &outuput->max);
 
     vector2Add(&outuput->min, at, &outuput->min);
     vector2Add(&outuput->max, at, &outuput->max);
@@ -25,14 +28,16 @@ int collisionCirclePolygonPoint(struct CollisionCircle* aAsCircle, struct Collis
     float pointDistance = vector2DistSqr(&currEdge->corner, &offset);
     
     if (pointDistance < aAsCircle->radius * aAsCircle->radius) {
-        float distance = sqrtf(pointDistance);
+        if (shapeOverlap) {
+            float distance = sqrtf(pointDistance);
 
-        if (distance < 0.00001f) {
-            vector2Negate(&currEdge->normal, &shapeOverlap->normal);
-            shapeOverlap->depth  = aAsCircle->radius;
-        } else {
-            vector2Scale(aToB, 1.0f / distance, &shapeOverlap->normal);
-            shapeOverlap->depth = aAsCircle->radius - distance;
+            if (distance < 0.00001f) {
+                vector2Negate(&currEdge->normal, &shapeOverlap->normal);
+                shapeOverlap->depth  = aAsCircle->radius;
+            } else {
+                vector2Scale(aToB, 1.0f / distance, &shapeOverlap->normal);
+                shapeOverlap->depth = aAsCircle->radius - distance;
+            }
         }
 
         return 1;
@@ -45,7 +50,7 @@ int collisionCirclePolygon(struct CollisionShape* a, struct CollisionShape* b, s
     struct CollisionCircle* aAsCircle = (struct CollisionCircle*)a;
     struct CollisionPolygon* bAsPolygon = (struct CollisionPolygon*)b;
 
-    float minOverlap = 10000000.0f;
+    float minOverlap = 0.0f;
     unsigned edgeIndex = bAsPolygon->edgeCount;
     int wasFirstLerpBefore = 0;
     int wasPrevLerpAfter = 0;
@@ -64,17 +69,20 @@ int collisionCirclePolygon(struct CollisionShape* a, struct CollisionShape* b, s
 
         float edgeLerp = vector2Cross(&offset, &currEdge->normal);
 
+        unsigned isLerpBefore = edgeLerp < EDGE_LERP_TOLERANCE;
+        unsigned isLerpAfter = edgeLerp > currEdge->edgeLen - EDGE_LERP_TOLERANCE;
+
         if (currEdge == bAsPolygon->edges) {
-            wasFirstLerpBefore = edgeLerp > currEdge->edgeLen - EDGE_LERP_TOLERANCE;
+            wasFirstLerpBefore = isLerpBefore;
         } else {
-            if (edgeLerp < EDGE_LERP_TOLERANCE && wasPrevLerpAfter) {
+            if (isLerpBefore && wasPrevLerpAfter) {
                 return collisionCirclePolygonPoint(aAsCircle, currEdge, aToB, shapeOverlap);
             }
 
-            wasPrevLerpAfter = edgeLerp > currEdge->edgeLen - EDGE_LERP_TOLERANCE;
+            wasPrevLerpAfter = isLerpAfter;
         }
 
-        if (edgeLerp >= 0.0f && edgeLerp <= currEdge->edgeLen && planeOverlap < minOverlap) {
+        if (!isLerpBefore && !isLerpAfter && (edgeIndex == bAsPolygon->edgeCount || planeOverlap < minOverlap)) {
             minOverlap = planeOverlap;
             edgeIndex = currEdge - bAsPolygon->edges;
         }
@@ -85,8 +93,10 @@ int collisionCirclePolygon(struct CollisionShape* a, struct CollisionShape* b, s
     }
 
     if (edgeIndex < bAsPolygon->edgeCount) {
-        shapeOverlap->depth = minOverlap;
-        vector2Negate(&bAsPolygon->edges[edgeIndex].normal, &shapeOverlap->normal);
+        if (shapeOverlap) {
+            shapeOverlap->depth = minOverlap;
+            vector2Negate(&bAsPolygon->edges[edgeIndex].normal, &shapeOverlap->normal);
+        }
         return 1;
     }
 

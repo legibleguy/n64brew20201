@@ -206,13 +206,6 @@ Gfx Boot_Camp_model_gfx[] = {
     gsSPMatrix((Mtx*)MATRIX_TRANSFORM_SEGMENT_ADDRESS + 8, G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH),
     gsSPDisplayList(Mars_CrateDisplayList),
     gsSPPopMatrix(G_MTX_MODELVIEW),
-    gsSPDisplayList(Mars_Metal),
-    gsSPMatrix((Mtx*)MATRIX_TRANSFORM_SEGMENT_ADDRESS + 3, G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH),
-    gsSPDisplayList(Mars_ConsoleBDisplayList),
-    gsSPPopMatrix(G_MTX_MODELVIEW),
-    gsSPMatrix((Mtx*)MATRIX_TRANSFORM_SEGMENT_ADDRESS + 5, G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH),
-    gsSPDisplayList(Mars_SearchlightDisplayList),
-    gsSPPopMatrix(G_MTX_MODELVIEW),
     gsSPDisplayList(Mars_Rock),
     gsSPMatrix((Mtx*)MATRIX_TRANSFORM_SEGMENT_ADDRESS + 1, G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH),
     gsSPDisplayList(Mars_Rock001DisplayList),
@@ -222,6 +215,13 @@ Gfx Boot_Camp_model_gfx[] = {
     gsSPPopMatrix(G_MTX_MODELVIEW),
     gsSPMatrix((Mtx*)MATRIX_TRANSFORM_SEGMENT_ADDRESS + 2, G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH),
     gsSPDisplayList(Mars_Rock003DisplayList),
+    gsSPPopMatrix(G_MTX_MODELVIEW),
+    gsSPDisplayList(Mars_SetTextures1),
+    gsSPMatrix((Mtx*)MATRIX_TRANSFORM_SEGMENT_ADDRESS + 3, G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH),
+    gsSPDisplayList(Mars_ConsoleBDisplayList),
+    gsSPPopMatrix(G_MTX_MODELVIEW),
+    gsSPMatrix((Mtx*)MATRIX_TRANSFORM_SEGMENT_ADDRESS + 5, G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH),
+    gsSPDisplayList(Mars_SearchlightDisplayList),
     gsSPPopMatrix(G_MTX_MODELVIEW),
     gsSPEndDisplayList(),
 };
@@ -237,25 +237,25 @@ struct Vector2 Boot_Camp_StartingPositions[] = {
 };
 
 struct SceneBoundary Boot_Camp_Boundary[] = {
-    {{-135.511, -1588.57}, {0.281584, 0.959537}},
-    {{2801.14, -1216.64}, {-0.783374, 0.621551}},
-    {{2442.27, 1181.65}, {-0.771413, -0.636335}},
-    {{-893.961, 3747.24}, {-0.471702, -0.881758}},
-    {{-4102.85, 4663.01}, {0.238846, -0.971058}},
-    {{-4997.53, 3455.51}, {0.99075, 0.135703}},
-    {{-3572.43, 770.234}, {0.800724, 0.599034}},
+    {{-2278.17, -959.795}, {0.281584, 0.959537}, 4466.02},
+    {{2007.14, -2217.35}, {-0.783374, 0.621551}, 2554.88},
+    {{3595.13, -215.93}, {-0.771413, -0.636335}, 3623.44},
+    {{1289.41, 2579.23}, {-0.471702, -0.881758}, 4952.31},
+    {{-3077.33, 4915.25}, {0.238846, -0.971058}, 2112.17},
+    {{-5128.37, 4410.77}, {0.99075, 0.135703}, 1928.34},
+    {{-4866.69, 2500.26}, {0.800724, 0.599034}, 4321.16},
 };
 
 struct DecorDefinition Boot_Camp_Decor[] = {
-    {{-2851.29, 0, 2001.92}, {-7.45058e-09, -0.973993, -1.73862e-07, 0.226577}, ROCK002_DECOR_ID},
-    {{1473.98, 0, 1562.2}, {-1.49012e-08, -0.922776, 5.11829e-08, -0.385336}, ROCK001_DECOR_ID},
-    {{-1550.68, 0, 376.439}, {-1.49012e-08, -0.931988, -5.16822e-08, 0.362488}, ROCK003_DECOR_ID},
-    {{2146.19, 0, -690.718}, {-2.98023e-08, 0.297541, 2.08658e-08, 0.954709}, CONSOLEB_DECOR_ID},
-    {{1083.56, 0, -701.366}, {0, -1, 0, -4.37114e-08}, CRATE_DECOR_ID},
-    {{856.715, 0, 807.676}, {-2.98023e-08, -0.863178, -1.10349e-08, -0.5049}, SEARCHLIGHT_DECOR_ID},
-    {{793.701, 0, -550.133}, {0, -1, 0, -4.37114e-08}, CRATE_DECOR_ID},
-    {{516.441, 0, -436.708}, {0, -1, 0, -4.37114e-08}, CRATE_DECOR_ID},
-    {{604.66, 0, -1041.64}, {0, -1, 0, -4.37114e-08}, CRATE_DECOR_ID},
+    {{-2851.29, 0, 2001.92}, {1.78814e-07, 0.226577, -7.45058e-09, 0.973993}, 1, ROCK002_DECOR_ID},
+    {{1473.98, 0, 1562.2}, {-5.96046e-08, -0.385336, -1.49012e-08, 0.922776}, 1, ROCK001_DECOR_ID},
+    {{-1550.68, 0, 376.439}, {5.96046e-08, 0.362488, -1.49012e-08, 0.931988}, 1, ROCK003_DECOR_ID},
+    {{2146.19, 0, -690.718}, {-1.49012e-08, 0.954709, -2.98023e-08, -0.297541}, 1, CONSOLEB_DECOR_ID},
+    {{1083.56, 0, -701.366}, {0, 0, 0, 1}, 1, CRATE_DECOR_ID},
+    {{856.715, 0, 807.676}, {0, -0.5049, -2.98023e-08, 0.863178}, 1, SEARCHLIGHT_DECOR_ID},
+    {{793.701, 0, -550.133}, {0, 0, 0, 1}, 1, CRATE_DECOR_ID},
+    {{516.441, 0, -436.708}, {0, 0, 0, 1}, 1, CRATE_DECOR_ID},
+    {{604.66, 0, -1041.64}, {0, 0, 0, 1}, 1, CRATE_DECOR_ID},
 };
 struct Vector3 Boot_Camp_PathingNodes[] = {
     {-1281.44, 0.0f, 2559.5},
@@ -267,17 +267,14 @@ char Boot_Camp_BasesPathNodes[] = {
     1,
     0,
 };
-struct basesDistance Boot_Camp_basePathNodeDistnaces[] = {
-    {0, 1, 0}, 
-    {0, 2, 0}, 
-    {1, 0, 2908.6}, 
-    {1, 2, 2908.6}, 
-    {2, 0, 5545.26}, 
-    {2, 1, 2636.66}, 
+unsigned short Boot_Camp_NodeDistances[] = {
+    0, 2908, 5545, 
+    2908, 0, 2636, 
+    5545, 2636, 0, 
 };
 char Boot_Camp_NextNode[] = {
-    0, 0, 0, 
-    0, 1, 0, 
+    0, 1, 1, 
+    0, 1, 2, 
     1, 1, 2, 
 };
 struct LevelDefinition Boot_Camp_Definition = {
@@ -291,6 +288,6 @@ struct LevelDefinition Boot_Camp_Definition = {
     .sceneRender = Boot_Camp_model_gfx,
     .theme = &MarsTheme,
     .staticScene = {Boot_Camp_Boundary, 7},
-    .pathfinding = {.nodeCount = 3, .baseNodes = Boot_Camp_BasesPathNodes, .baseDistances = Boot_Camp_basePathNodeDistnaces, .nodePositions = Boot_Camp_PathingNodes, .nextNode = Boot_Camp_NextNode},
+    .pathfinding = {.nodeCount = 3, .baseNodes = Boot_Camp_BasesPathNodes, .nodeDistances = Boot_Camp_NodeDistances, .nodePositions = Boot_Camp_PathingNodes, .nextNode = Boot_Camp_NextNode},
 };
 

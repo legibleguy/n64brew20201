@@ -1,6 +1,7 @@
 
 #include "menu.h"
 #include "models/mars.geo.h"
+#include "models/levelplaceholder.geo.h"
 #include "images/players_1.h"
 #include "images/players_2.h"
 #include "images/players_3.h"
@@ -15,4 +16,21 @@ Gfx gMainMenuSolidColor[] = {
     gsDPSetEnvColor(255, 255, 255, 255),
     gsDPSetCombineLERP(0, 0, 0, ENVIRONMENT, 0, 0, 0, ENVIRONMENT, 0, 0, 0, ENVIRONMENT, 0, 0, 0, ENVIRONMENT),
 	gsSPEndDisplayList(),
+};
+
+Gfx gMainMenuLevelWireframePass0[] = {
+    gsDPPipeSync(),
+    gsSPGeometryMode(G_LIGHTING | G_SHADE, G_ZBUFFER),
+    gsDPSetCycleType(G_CYC_1CYCLE),
+    gsDPSetRenderMode(G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2),
+    gsDPSetEnvColor(64, 255, 32, 255),
+    gsDPSetCombineLERP(0, 0, 0, ENVIRONMENT, 0, 0, 0, ENVIRONMENT, 0, 0, 0, ENVIRONMENT, 0, 0, 0, ENVIRONMENT),
+    gsSPEndDisplayList(),
+};
+
+Gfx gMainMenuLevelWireframePass1[] = {
+    gsDPPipeSync(),
+    gsDPSetRenderMode(G_RM_AA_ZB_DEC_LINE, G_RM_AA_ZB_DEC_LINE2),
+    gsDPSetEnvColor(32, 32, 32, 255),
+    gsSPEndDisplayList(),
 };
