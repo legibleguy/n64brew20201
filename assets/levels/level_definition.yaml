@@ -2,6 +2,48 @@ LevelList: ../../src/levels/level_list.h
 ThemeList: ../../src/levels/theme_list.h
 
 Themes:
+    - Name: Space
+      Output: ../../data/level_themes/Space/theme.h
+
+      Levels:
+        - Name: Spaceship Template
+          Filename: Spaceship_Template.fbx
+          Output: ../../data/levels/Spaceship_Template/level.h
+          MaxPlayers: 4
+
+        - Name: Boot Camp
+          Filename: BootCamp.fbx
+          Output: ../../data/levels/Boot_Camp/level.h
+          MaxPlayers: 2
+          Campaign: True
+          Tutorial: True
+          DisallowUpgrade: True
+          AIDifficulty: 0
+
+        - Name: Taurus
+          Filename: Taurus.fbx
+          Output: ../../data/levels/Taurus/level.h
+          MaxPlayers: 3
+          Campaign: True
+          DisallowUpgrade: True
+          AIDifficulty: 0.1
+
+        - Name: Cassiopeia
+          Filename: Cassiopeia.fbx
+          Output: ../../data/levels/Cassiopeia/level.h
+          MaxPlayers: 2
+          Campaign: True
+          Multiplayer: True
+          DisallowUpgrade: True
+          AIDifficulty: 0.3
+
+        - Name: Spacestation F1
+          Filename: Spaceship_Lowest_Level.fbx
+          Output: ../../data/levels/Spacestation_F1/level.h
+          MaxPlayers: 4
+          Campaign: True
+          AIDifficulty: 0.3
+
     - Name: Mars
       Output: ../../data/level_themes/Mars/theme.h
 
@@ -11,23 +53,18 @@ Themes:
           Output: ../../data/levels/Level_Template/level.h
           MaxPlayers: 4
 
-        - Name: Boot Camp
-          Filename: BootCamp.fbx
-          Output: ../../data/levels/Boot_Camp/level.h
-          MaxPlayers: 2
-          Campaign: True
-          Tutorial: True
-
-        - Name: The Pit
-          Filename: ThePit.fbx
-          Output: ../../data/levels/The_Pit/level.h
-          MaxPlayers: 2
-          Campaign: True
-
         - Name: Galaxy
           Filename: Galaxy.fbx
-          Output: ../../data/levels/Galaxy/level.h
+          Output: ../../data/levels/Galaxy/level.hz
           MaxPlayers: 2
+          Campaign: True
+          Multiplayer: True
+          AIDifficulty: 1
+
+        - Name: Spirit
+          Filename: Campaign_Spirit.fbx
+          Output: ../../data/levels/Spirit/level.h
+          MaxPlayers: 4
           Campaign: True
 
         - Name: Triangle
@@ -35,6 +72,16 @@ Themes:
           Output: ../../data/levels/Triangle/level.h
           MaxPlayers: 3
           Campaign: True
+          Multiplayer: True
+          AIDifficulty: 0.7
+
+        - Name: Orion
+          Filename: Orion.fbx
+          Output: ../../data/levels/Orion/level.h
+          MaxPlayers: 4
+          Campaign: True
+          Multiplayer: True
+          AIDifficulty: 0.7
 
         - Name: Curiosity
           Filename: Campaign_Curiosity.fbx
@@ -48,53 +95,45 @@ Themes:
           MaxPlayers: 4
           Campaign: True
 
+        - Name: Cluster
+          Filename: Cluster.fbx
+          Output: ../../data/levels/Cluster/level.h
+          MaxPlayers: 3
+          Campaign: True
+          AIDifficulty: 0.7
+
         - Name: Perseverance
           Filename: Campaign_Perseverance.fbx
           Output: ../../data/levels/Perseverance/level.h
           MaxPlayers: 4
           Campaign: True
-
-        - Name: Spirit
-          Filename: Campaign_Spirit.fbx
-          Output: ../../data/levels/Spirit/level.h
-          MaxPlayers: 4
-          Campaign: True
-
-        - Name: The Octogon
-          Filename: TheOctogon.fbx
-          Output: ../../data/levels/The_Octogon/level.h
-          MaxPlayers: 4
-          Multiplayer: True
-          
-        - Name: Course 01
-          Filename: Course_01.fbx
-          Output: ../../data/levels/Course_01/level.h
-          MaxPlayers: 4
-          Multiplayer: True
-
-        - Name: Sojourner 2
-          Filename: Multiplayer_Sojourner.fbx
-          Output: ../../data/levels/Sojourner_2/level.h
-          MaxPlayers: 4
-          Multiplayer: True
-
-        - Name: Curiosity 2
-          Filename: Multiplayer_Curiosity.fbx
-          Output: ../../data/levels/Curiosity_2/level.h
-          MaxPlayers: 4
-          Multiplayer: True
   
-    - Name: Space
-      Output: ../../data/level_themes/Space/theme.h
+    - Name: Snow
+      Output: ../../data/level_themes/Snow/theme.h
 
       Levels:
-        - Name: Spaceship Template
-          Filename: Spaceship_Template.fbx
-          Output: ../../data/levels/Spaceship_Template/level.h
+        - Name: Snow Template
+          Filename: SnowTemplate.fbx
+          Output: ../../data/levels/Snow_Template/level.h
           MaxPlayers: 4
 
-        - Name: Spacestation F1
-          Filename: Spaceship_Lowest_Level.fbx
-          Output: ../../data/levels/Spacestation_F1/level.h
+        - Name: Sagittarius
+          Filename: Sagittarius.fbx
+          Output: ../../data/levels/Sagittarius/level.h
+          MaxPlayers: 3
+          Campaign: True
+          AIDifficulty: 1
+
+        - Name: Cygnus
+          Filename: Cygnus.fbx
+          Output: ../../data/levels/Cygnus/level.h
+          MaxPlayers: 2
+          Campaign: True
+          AIDifficulty: 1
+
+        - Name: Triple Threat
+          Filename: TripleThreat.fbx
+          Output: ../../data/levels/Triple_Threat/level.h
           MaxPlayers: 4
           Campaign: True
+          AIDifficulty: 1

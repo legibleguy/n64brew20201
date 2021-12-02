@@ -6,6 +6,7 @@
 #include "util/memory.h"
 #include "menu/endgamemenu.h"
 #include "savefile/savefile.h"
+#include "menu/credits.h"
 
 enum SceneState gSceneState;
 enum SceneState gNextSceneState;
@@ -41,7 +42,7 @@ void sceneLoadLevel(struct GameConfiguration* gameConfig) {
 
     struct LevelDefinition* definition = levelDefinitionUnpack(metadata->fullDefinition, gLevelSegment, gThemeSegment);
 
-    levelSceneInit(&gCurrentLevel, definition, gameConfig->playerCount, gameConfig->humanPlayerCount, metadata->flags);
+    levelSceneInit(&gCurrentLevel, definition, gameConfig->playerCount, gameConfig->aiPlayerMask, metadata->flags, gMainMenu.selections.selectedPlayerCount == 0 ? definition->aiDifficulty : 1.0f);
     gSceneState = SceneStateInLevel;
 }
 
@@ -50,10 +51,14 @@ void sceneQueueLoadLevel(struct GameConfiguration* nextLevel) {
     gNextSceneState = SceneStateInLevel;
 }
 
+void sceneQueueCredits() {
+    gNextSceneState = SceneStateInCredits;
+}
+
 void sceneQueueMainMenu() {
     gNextSceneState = SceneStateInMainMenu;
-    gMainMenu.selections.menuState = MainMenuStateSelectingPlayerCount;
-    gMainMenu.selections.targetMenuState = MainMenuStateSelectingPlayerCount;
+    gMainMenu.selections.menuState = MainMenuStateSelectingTitleScreen;
+    gMainMenu.selections.targetMenuState = MainMenuStateSelectingTitleScreen;
 }
 
 void sceneQueuePostGameScreen(unsigned winningTeam, unsigned teamCount, float time) {
@@ -75,10 +80,6 @@ void sceneLoadMainMenu() {
     LOAD_SEGMENT(fonts, gFontSegment);
     mainMenuInit(&gMainMenu);
     gSceneState = SceneStateInMainMenu;
-}
-
-void sceneQueueCredits(){
-    gNextSceneState = SceneStateInCredits;
 }
 
 void sceneLoadCredits() {

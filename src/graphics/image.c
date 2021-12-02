@@ -9,10 +9,20 @@ void graphicsCopyImage(struct RenderState* state, void* source, int iw, int ih, 
     gDPPipeSync(state->dl++);
     gDPSetCycleType(state->dl++, G_CYC_1CYCLE);
     gDPSetRenderMode(state->dl++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
-	gDPSetCombineLERP(state->dl++, TEXEL0, 0, ENVIRONMENT, 0, 0, 0, 0, ENVIRONMENT, TEXEL0, 0, ENVIRONMENT, 0, 0, 0, 0, ENVIRONMENT);
+	gDPSetCombineLERP(state->dl++, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
     gDPSetTextureLUT(state->dl++, G_TT_NONE);
     gDPSetTexturePersp(state->dl++, G_TP_NONE);
     gDPSetEnvColor(state->dl++, color.r, color.g, color.b, color.a);
+
+    if (dy < 0) {
+        height += dy;
+        sy -= dy;
+        dy = 0;
+    }
+
+    if (height <= 0) {
+        return;
+    }
 
     int tileXCount = (width + MAX_TILE_X-1) / MAX_TILE_X;
     int tileYCount = (height + MAX_TILE_Y-1) / MAX_TILE_Y;
@@ -83,5 +93,4 @@ void graphicsCopyImage(struct RenderState* state, void* source, int iw, int ih, 
     }
 
     gDPPipeSync(state->dl++);
-    gDPSetRenderMode(state->dl++, G_RM_AA_OPA_SURF, G_RM_AA_OPA_SURF2);
 }

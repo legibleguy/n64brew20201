@@ -19,7 +19,7 @@
 #include "game_defs.h"
 
 #define CAPTURE_TIME        3
-#define SPAWN_TIME          4
+#define SPAWN_TIME          3.5
 #define FLASHES_PER_SPAWN   5
 
 float gSpawnTimeSpeedScalar[] = {
@@ -45,20 +45,20 @@ float gCapacityScalar[] = {
 
 float gSpeedUpgradeTime[MAX_UPGRADE_COUNT] = {
     10.0f,
-    15.0f,
-    20.0f,
-};
-
-float gCapacityUpgradeTime[MAX_UPGRADE_COUNT] = {
-    10.0f,
     20.0f,
     30.0f,
 };
 
-float gDefenseUpgradeTime[MAX_UPGRADE_COUNT] = {
-    5.0f,
-    10.0f,
+float gCapacityUpgradeTime[MAX_UPGRADE_COUNT] = {
     15.0f,
+    30.0f,
+    45.0f,
+};
+
+float gDefenseUpgradeTime[MAX_UPGRADE_COUNT] = {
+    12.0f,
+    24.0f,
+    36.0f,
 };
 
 #define MIN_FLAG_HEIGHT     0.5f
@@ -122,28 +122,14 @@ void levelBaseStartUpgrade(struct LevelBase* base, enum LevelBaseState nextState
         return;
     }
 
-    switch (nextState) {
-        case LevelBaseStateUpgradingSpawnRate:
-            if (base->speedUpgrade + 1 < MAX_UPGRADE_COUNT) {
-                base->stateTimeLeft = gSpeedUpgradeTime[base->speedUpgrade];
-                base->state = nextState;
-            }
-            break;
-        case LevelBaseStateUpgradingCapacity:
-            if (base->capacityUpgrade + 1 < MAX_UPGRADE_COUNT) {
-                base->stateTimeLeft = gCapacityUpgradeTime[base->capacityUpgrade];
-                base->state = nextState;
-            }
-            break;
-        case LevelBaseStateUpgradingDefence:
-            if (base->defenseUpgrade + 1 < MAX_UPGRADE_COUNT) {
-                base->stateTimeLeft = gDefenseUpgradeTime[base->defenseUpgrade];
-                base->state = nextState;
-            }
-            break;
-        default:
-            break;
-    };
+    float time = levelBaseTimeForUpgrade(base, nextState);
+
+    if (time < 0.0f) {
+        return;
+    }
+
+    base->stateTimeLeft = time;
+    base->state = nextState;
 }
 
 void levelBaseInit(struct LevelBase* base, struct BaseDefinition* definition, unsigned char baseId, unsigned int makeNeutral) {
@@ -221,13 +207,17 @@ void levelBaseUpdate(struct LevelBase* base) {
         base->baseControlCount[i] = 0;
     }
 
+    if (base->state != LevelBaseStateNeutral) {
+        base->baseControlCount[base->team.teamNumber] = base->defenseUpgrade;
+    }
+
     int isCapturing = 0;
 
     if (controllingTeam != TEAM_NONE) {
         isCapturing = 1;
 
         if (controllingTeam != base->team.teamNumber) {
-            base->captureProgress -= gTimeDelta * gSpawnTimeCaptureScalar[base->defenseUpgrade];
+            base->captureProgress -= gTimeDelta;
             gLastCaptureTime = gTimePassed;
 
             if (base->captureProgress <= 0.0f) {
@@ -239,7 +229,7 @@ void levelBaseUpdate(struct LevelBase* base) {
                 base->collider->collisionLayers = DynamicSceneEntryIsTrigger | DynamicSceneEntryHasTeam | COLLISION_LAYER_FOR_TEAM(TEAM_NONE);
             }
         } else {
-            base->captureProgress += gTimeDelta * gSpawnTimeCaptureScalar[base->defenseUpgrade];
+            base->captureProgress += gTimeDelta;
 
             if (base->captureProgress >= CAPTURE_TIME) {
                 base->captureProgress = CAPTURE_TIME;
@@ -395,4 +385,32 @@ int levelBaseIsBeingCaptured(struct LevelBase* base) {
     } else {
         return base->captureProgress != base->lastCaptureProgress;
     }
+}
+
+int levelBaseIsBeingUpgraded(struct LevelBase* base) {
+    return base->state >= LevelBaseStateUpgradingSpawnRate && base->state <= LevelBaseStateUpgradingDefence;
+}
+
+float levelBaseTimeForUpgrade(struct LevelBase* base, enum LevelBaseState upgradeType) {
+    switch (upgradeType)
+    {
+    case LevelBaseStateUpgradingSpawnRate:
+        if (base->speedUpgrade + 1 < MAX_UPGRADE_COUNT) {
+            return gSpeedUpgradeTime[base->speedUpgrade];
+        }
+        break;
+    case LevelBaseStateUpgradingCapacity:
+        if (base->capacityUpgrade + 1 < MAX_UPGRADE_COUNT) {
+            return gCapacityUpgradeTime[base->capacityUpgrade];
+        }
+        break;
+    case LevelBaseStateUpgradingDefence:
+        if (base->defenseUpgrade + 1 < MAX_UPGRADE_COUNT) {
+            return gDefenseUpgradeTime[base->defenseUpgrade];
+        }
+        break;
+    default:
+    }
+
+    return -1.0f;
 }

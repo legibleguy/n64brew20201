@@ -59,7 +59,7 @@ void minimapRender(struct LevelScene* scene, struct RenderState* renderState, un
         if (levelBaseIsBeingCaptured(base) && mathfMod(gTimePassed, CAPTURE_FLASH_FREQ) > CAPTURE_FLASH_FREQ * 0.5f) {
             color = gColorBlack;
         } else if (base->state == LevelBaseStateNeutral || base->state == LevelBaseStateSpawning)  {
-            color = gTeamColors[levelBaseGetTeam(base)];
+            color = gTeamColorsSaturated[levelBaseGetTeam(base)];
         } else {
             color = gTeamDarkColors[levelBaseGetTeam(base)];
         }
@@ -69,35 +69,24 @@ void minimapRender(struct LevelScene* scene, struct RenderState* renderState, un
     }
 
     for (unsigned i = 0; i < scene->minionCount; ++i) {
-        if (scene->minions[i].minionFlags & MinionFlagsActive) {
-            struct Coloru8 color = gTeamColors[scene->minions[i].team.teamNumber];
+        if (minionIsAlive(&scene->minions[i])) {
+            struct Coloru8 color = gTeamColorsSaturated[scene->minions[i].team.teamNumber];
             spriteSetColor(renderState, LAYER_SOLID_COLOR, color);
             minimapRenderDot(renderState, &transform, &scene->minions[i].transform.position, 2);
         }
     }
 
-    Mtx* minimapTransform = renderStateRequestMatrices(renderState, 1);
-
-    if (!minimapTransform) {
-        return;
-    }
-
-    float minimapMtx[4][4];
-    guScaleF(minimapMtx, transform.scaleX, 1.0f, transform.scaleY);
-    minimapMtx[3][0] = transform.offsetX;
-    minimapMtx[3][2] = transform.offsetY;
-
-
-    guMtxF2L(minimapMtx, minimapTransform);
-
     Gfx tmpBuffer[8];
     Gfx* curr = tmpBuffer;
-    gSPMatrix(curr++, minimapTransform, G_MTX_MODELVIEW | G_MTX_PUSH | G_MTX_MUL);
     gSPClearGeometryMode(curr++, G_CULL_BOTH);
     spriteWriteRaw(renderState, LAYER_SOLID_COLOR, tmpBuffer, curr - tmpBuffer);
 
     for (unsigned i = 0; i < scene->playerCount; ++i) {
-        struct Coloru8 color = gTeamColors[scene->players[i].team.teamNumber];
+        if (!playerIsAlive(&scene->players[i])) {
+            continue;
+        }
+
+        struct Coloru8 color = gTeamColorsSaturated[scene->players[i].team.teamNumber];
         spriteSetColor(renderState, LAYER_SOLID_COLOR, color);
 
         Mtx* matrix = renderStateRequestMatrices(renderState, 1);
@@ -106,7 +95,13 @@ void minimapRender(struct LevelScene* scene, struct RenderState* renderState, un
             continue;
         }
 
-        transformToMatrixL(&scene->players[i].transform, matrix);
+        struct Transform playerTransform = scene->players[i].transform;
+        playerTransform.position.x = scene->players[i].transform.position.x * transform.scaleX + transform.offsetX;
+        playerTransform.position.y = 0.0f;
+        playerTransform.position.z = scene->players[i].transform.position.z * transform.scaleY + transform.offsetY;
+        playerTransform.rotation = scene->players[i].transform.rotation;
+        vector3Scale(&gOneVec, &playerTransform.scale, 1.0f / SCENE_SCALE);
+        transformToMatrixL(&playerTransform, matrix);
         curr = tmpBuffer;
         gSPMatrix(curr++, matrix, G_MTX_MODELVIEW | G_MTX_PUSH | G_MTX_MUL);
         gSPVertex(curr++, gPointerVertex, 3, 0);
@@ -114,8 +109,4 @@ void minimapRender(struct LevelScene* scene, struct RenderState* renderState, un
         gSPPopMatrix(curr++, G_MTX_MODELVIEW);
         spriteWriteRaw(renderState, LAYER_SOLID_COLOR, tmpBuffer, curr - tmpBuffer);
     }
-
-    curr = tmpBuffer;
-    gSPPopMatrix(curr++, G_MTX_MODELVIEW);
-    spriteWriteRaw(renderState, LAYER_SOLID_COLOR, tmpBuffer, curr - tmpBuffer);
 }

@@ -24,15 +24,18 @@
 #define MINION_FOLLOW_DIST  3.0f
 #define MINION_MOVE_SPEED   (PLAYER_BASE_MOVE_SPEED * 10.0f)
 #define MINION_ACCELERATION (PLAYER_MOVE_ACCELERATION * 2.0f)
-#define MINION_HP           4
-#define MINION_DPS          2
+#define MINION_HP           3.5
+#define DEFENDER_HEAL_RATE  0.2f
+#define ATTACK_RATE         0.8f
+#define MINION_DPS          1.1f
 #define INVINCIBILITY_TIME  0.5f
 #define INVINCIBLE_FLASH_FREQ                      0.1f
 #define ATTACK_RADIUS       (1.0f * SCENE_SCALE)
+#define RENDER_SCALE           0.6f
 
 struct CollisionCircle gMinionCollider = {
     {CollisionShapeTypeCircle},
-    SCENE_SCALE * 0.4f,
+    MINION_COLLIDE_RADIUS,
 };
 
 struct MinionDef {
@@ -48,7 +51,10 @@ void minionCorrectOverlap(struct DynamicSceneOverlap* overlap) {
         struct Minion* minion = (struct Minion*)overlap->thisEntry->data;
         struct TeamEntity* entityB = (struct TeamEntity*)overlap->otherEntry->data;
 
-        if (entityB->teamNumber != minion->team.teamNumber && minion->attackTarget == 0 && minion->currentCommand != MinionCommandFollow) {
+        if (entityB->teamNumber != minion->team.teamNumber && 
+            minion->attackTarget == 0 && 
+            minion->currentCommand != MinionCommandFollow && 
+            minion->attackTimer <= 0.0f) {
             minionSetAttackTarget(minion, entityB);
         }
     }
@@ -60,7 +66,7 @@ void minionAnimationEvent(struct SKAnimator* animator, void* data, struct SKAnim
     if (event->id == MINION_ANIMATION_EVENT_ATTACK && minion->attackTarget) {
         float distSqr = vector3DistSqrd(teamEntityGetPosition(minion->attackTarget), &minion->transform.position);
         if (distSqr < ATTACK_RADIUS * ATTACK_RADIUS) {
-            teamEntityApplyDamage(minion->attackTarget, MINION_DPS * skAnimationLength(&minion_animations_animations[MINION_ANIMATIONS_MINION_ANIMATIONS_ARMATURE_ATTACK_INDEX]));
+            teamEntityApplyDamage(minion->attackTarget, MINION_DPS * ATTACK_RATE);
         } else {
             minion->attackTarget = 0;
         }
@@ -78,6 +84,7 @@ void minionInit(struct Minion* minion, enum MinionType type, struct Transform* a
     minion->minionFlags = MinionFlagsActive;
     minion->sourceBaseId = sourceBaseId;
     minion->velocity = gZeroVec;
+    minion->attackTimer = 0.0f;
     damageHandlerInit(&minion->damageHandler, MINION_HP);
     pathfinderInit(&minion->pathfinder, &minion->transform.position);
 
@@ -103,6 +110,7 @@ void minionInit(struct Minion* minion, enum MinionType type, struct Transform* a
     skAnimatorInit(&minion->animator, 1, minionAnimationEvent, minion);
     skAnimatorRunClip(&minion->animator, &minion_animations_animations[MINION_ANIMATIONS_MINION_ANIMATIONS_ARMATURE_IDLE_INDEX], SKAnimatorFlagsLoop);
     transformInitIdentity(&minion->animationTransform);
+    vector3Scale(&gOneVec, &minion->transform.scale, RENDER_SCALE);
 }
 
 void minionRender(struct Minion* minion, struct RenderState* renderState) {
@@ -118,9 +126,8 @@ void minionRender(struct Minion* minion, struct RenderState* renderState) {
 
     int isDamageFlash = damageHandlerIsFlashing(&minion->damageHandler);
 
-    struct Coloru8 color = gTeamColors[isDamageFlash ? DAMAGE_PALLETE_INDEX : minion->team.teamNumber];
-
-    gDPSetPrimColor(renderState->dl++, 0, 0, color.r, color.g, color.b, color.a);
+    gDPPipeSync(renderState->dl++);
+    gDPUseTeamPallete(renderState->dl++, isDamageFlash ? DAMAGE_PALLETE_INDEX : minion->team.teamNumber, 0);
     gSPMatrix(renderState->dl++, osVirtualToPhysical(matrix), G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH);
     gSPDisplayList(renderState->dl++, gTeamFactions[minion->team.teamNumber]->minionMesh);
     gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
@@ -140,6 +147,8 @@ void minionIssueCommand(struct Minion* minion, enum MinionCommand command, unsig
 void minionUpdate(struct Minion* minion) {
     struct Vector3* target = 0;
     float minDistance = 0.0f;
+
+    minion->attackTimer -= gTimeDelta;
 
     damageHandlerUpdate(&minion->damageHandler);
 
@@ -162,10 +171,20 @@ void minionUpdate(struct Minion* minion) {
 
     switch (minion->currentCommand) {
         case MinionCommandFollow:
-            target = &gCurrentLevel.players[minion->followingPlayer].transform.position;
-            minDistance = MINION_FOLLOW_DIST * SCENE_SCALE;
+            if(minion->pathfinder.currentNode < gCurrentLevel.definition->pathfinding.nodeCount) {
+                target = &gCurrentLevel.definition->pathfinding.nodePositions[minion->pathfinder.currentNode]; 
+            } else {
+                target = &gCurrentLevel.players[minion->followingPlayer].transform.position;
+                minDistance = MINION_FOLLOW_DIST * SCENE_SCALE;
+            }
             break;
         case MinionCommandDefend:
+            minion->damageHandler.hp += DEFENDER_HEAL_RATE * gTimeDelta;
+
+            if (minion->damageHandler.hp > MINION_HP) {
+                minion->damageHandler.hp = MINION_HP;
+            }
+
             target = teamEntityGetPosition(minion->currentTarget);
         
             if (target != 0) {
@@ -251,8 +270,8 @@ void minionUpdate(struct Minion* minion) {
     vector3AddScaled(&minion->transform.position, &minion->velocity, SCENE_SCALE * gTimeDelta, &minion->transform.position);
 
     struct Vector2 right;
-    right.x = minion->velocity.x;
-    right.y = -minion->velocity.z;
+    right.x = -minion->velocity.x;
+    right.y = minion->velocity.z;
 
     if (right.x != 0.0f || right.y != 0.0f) {
         vector2Normalize(&right, &right);
@@ -278,6 +297,7 @@ void minionCleanup(struct Minion* minion) {
 
 void minionSetAttackTarget(struct Minion* minion, struct TeamEntity* target) {
     minion->attackTarget = target;
+    minion->attackTimer = ATTACK_RATE;
     skAnimatorRunClip(&minion->animator, &minion_animations_animations[MINION_ANIMATIONS_MINION_ANIMATIONS_ARMATURE_ATTACK_INDEX], 0);
 }
 
@@ -299,12 +319,9 @@ int minionIsAlive(struct Minion* minion) {
 void minionSetTarget(struct Minion* minion, struct TeamEntity* value) {
     minion->currentTarget = value;
 
-    if(minion->currentTarget && vector3DistSqrd(teamEntityGetPosition(minion->currentTarget), &minion->transform.position) > 10000){
-        if(minion->currentTarget->entityType == TeamEntityTypeBase){
-            if(minion->pathfinder.currentNode >= gCurrentLevel.definition->pathfinding.nodeCount || 
-                minion->currentTarget->teamNumber == minion->team.teamNumber){
-                pathfinderSetTarget(&minion->pathfinder, &gCurrentLevel.definition->pathfinding, &minion->transform.position, teamEntityGetPosition(minion->currentTarget));
-            }
-        }
+    if(minion->currentTarget && minion->currentTarget->entityType == TeamEntityTypeBase && vector3DistSqrd(teamEntityGetPosition(minion->currentTarget), &minion->transform.position) > 10000) {
+        pathfinderSetTarget(&minion->pathfinder, &gCurrentLevel.definition->pathfinding, &minion->transform.position, teamEntityGetPosition(minion->currentTarget));
+    } else {
+        pathfinderReset(&minion->pathfinder);
     }
 }

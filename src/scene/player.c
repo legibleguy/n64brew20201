@@ -28,7 +28,7 @@
 
 struct CollisionCircle gPlayerCollider = {
     {CollisionShapeTypeCircle},
-    SCENE_SCALE * 0.5f,
+    PLAYER_COLLIDER_RADIOUS,
 };
 
 struct Vector3 gRecallOffset = {0.0f, 0.0f, -4.0 * SCENE_SCALE};
@@ -48,6 +48,9 @@ struct Vector3 gRecallOffset = {0.0f, 0.0f, -4.0 * SCENE_SCALE};
 #define PLAYER_JUMP_ATTACK_FALL_VELOICTY    -20.0f
 #define PLAYER_JUMP_ATTCK_DELAY             0.5f
 
+int aiAttackPriority(struct TeamEntity* target) {
+    return target->entityType;
+}
 
 void playerCalculateAttackLocation(struct Player* player, struct PlayerAttackInfo* attackInfo, struct Vector3* output) {
     skCalculateBonePosition(&player->armature, attackInfo->boneIndex, &attackInfo->localPosition, output);
@@ -112,6 +115,9 @@ void playerEnterAttackState(struct Player* player, struct PlayerAttackInfo* atta
 }
 
 void playerEnterDeadState(struct Player* player) {
+    // any minions that were following the player when they died
+    // should start attacking nearest target
+    levelSceneIssueMinionCommand(&gCurrentLevel, player->playerIndex, MinionCommandAttack);
     playerEndAttack(player);
     soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.deathSounds), 0);
     skAnimatorRunClip(&player->animator, factionGetAnimation(player->team.teamNumber, PlayerAnimationDie), 0);
@@ -218,10 +224,25 @@ void playerCorrectOverlap(struct DynamicSceneOverlap* overlap) {
     struct Vector2 vel2D;
     vel2D.x = player->velocity.x;
     vel2D.y = player->velocity.z;
-    vector2Scale(&overlap->shapeOverlap.normal, vector2Dot(&vel2D, &overlap->shapeOverlap.normal), &normVelocity);
-    vector2Sub(&vel2D, &normVelocity, &vel2D);
-    player->velocity.x = vel2D.x;
-    player->velocity.z = vel2D.y;
+
+    float velocityDot = vector2Dot(&vel2D, &overlap->shapeOverlap.normal);
+
+    if (velocityDot * overlap->shapeOverlap.depth > 0.0f) {
+        vector2Scale(&overlap->shapeOverlap.normal, velocityDot, &normVelocity);
+        vector2Sub(&vel2D, &normVelocity, &vel2D);
+        player->velocity.x = vel2D.x;
+        player->velocity.z = vel2D.y;
+    }
+
+    if (overlap->otherEntry->flags & DynamicSceneEntryHasTeam) {
+        struct TeamEntity* otherEntity = (struct TeamEntity*)overlap->otherEntry->data;
+
+        if (otherEntity->teamNumber != player->team.teamNumber &&
+            (player->touchedBy == 0 || aiAttackPriority(player->touchedBy) < aiAttackPriority(otherEntity))) {
+            player->touchedBy = otherEntity;
+        }
+    }
+
 
     teamEntityCorrectOverlap(overlap);
 }
@@ -241,6 +262,8 @@ void playerInit(struct Player* player, unsigned playerIndex, unsigned team, stru
     player->idleSoundEffect = SOUND_ID_NONE;
     player->animationSpeed = 1.0f;
     player->controlledBases = 0;
+    player->touchedBy = 0;
+    player->aiTarget = 0;
 
     player->velocity = gZeroVec;
     player->rightDir = gRight2;
@@ -268,6 +291,15 @@ void playerInit(struct Player* player, unsigned playerIndex, unsigned team, stru
 
     skAnimatorInit(&player->animator, gTeamFactions[player->team.teamNumber]->playerBoneCount, playerAnimationEvent, player);
     skAnimatorRunClip(&player->animator, factionGetAnimation(player->team.teamNumber, PlayerAnimationIdle), SKAnimatorFlagsLoop);
+
+    int closestBase = aiPlannerFindNearestBaseToPoint(&gCurrentLevel, &player->transform.position, player->team.teamNumber, EnemyTeam, 0);
+
+    if (closestBase >= 0) {
+        struct Vector3 towardsBase;
+        vector3Sub(&gCurrentLevel.bases[closestBase].position, &player->transform.position, &towardsBase);
+        quatLook(&towardsBase, &gUp, &player->transform.rotation);
+    }
+
 }
 
 void playerRotateTowardsInput(struct Player* player, struct PlayerInput* input, float rotationRate) {
@@ -507,6 +539,14 @@ void playerUpdate(struct Player* player, struct PlayerInput* input) {
     player->transform.position.z = player->collider->center.y;
     player->velocity.x = vel2D.x;
     player->velocity.z = vel2D.y;
+
+    if (player->touchedBy) {
+        player->aiTarget = player->touchedBy;
+    } else {
+        player->aiTarget = 0;
+    }
+
+    player->touchedBy = 0;
 }
 
 void playerRender(struct Player* player, struct RenderState* renderState) {
@@ -521,8 +561,7 @@ void playerRender(struct Player* player, struct RenderState* renderState) {
 
     int isDamageFlash = damageHandlerIsFlashing(&player->damageHandler);
 
-    gDPPipeSync(renderState->dl++);
-    gSPDisplayList(renderState->dl++, gTeamPalleteTexture[isDamageFlash ? DAMAGE_PALLETE_INDEX : player->team.teamNumber]);
+    gDPUseTeamPallete(renderState->dl++, isDamageFlash ? DAMAGE_PALLETE_INDEX : player->team.teamNumber, 1);
     skRenderObject(&player->armature, renderState);
     gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
 

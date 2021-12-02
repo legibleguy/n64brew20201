@@ -17,6 +17,7 @@ enum LevelMetadataFlags {
     LevelMetadataFlagsMultiplayer = (1 << 1),
     LevelMetadataFlagsUnlocked = (1 << 2),
     LevelMetadataFlagsTutorial = (1 << 3),
+    LevelMetadataFlagsDisallowUpgrade = (1 << 4),
 };
 
 struct BaseDefinition {
@@ -51,6 +52,7 @@ struct LevelDefinition {
     struct ThemeDefinition* theme;
     struct StaticScene staticScene;
     struct PathfindingDefinition pathfinding;
+    float aiDifficulty;
 };
 
 struct LevelDefinition* levelDefinitionUnpack(struct LevelDefinition* addressPtr, void* segmentRamStart, void* themeSegmentStart);

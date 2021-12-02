@@ -13,7 +13,6 @@
 #include "menu/basecommandmenu.h"
 #include "menu/playerstatusmenu.h"
 #include "minimap.h"
-#include "audio/dynamic_music.h"
 #include "events.h"
 #include "collision/collisionlayers.h"
 #include "levels/themedefinition.h"
@@ -21,26 +20,20 @@
 #include "scene_management.h"
 #include "tutorial/tutorial.h"
 #include "menu/endgamemenu.h"
+#include "team_data.h"
 #include "../data/fonts/fonts.h"
 
 #include "collision/polygon.h"
 #include "math/vector3.h"
-
-struct DynamicMarker gIntensityMarkers[] = {
-    {0, {127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-    {25, {127, 0, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-    {50, {127, 0, 127, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-    {75, {127, 0, 127, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-};
 
 #define GO_SHOW_DURATION 0.5f
 #define GAME_START_DELAY 3.0f
 #define GAME_END_DELAY  5.0f
 #define LOSE_BY_KNOCKOUT_TIME   15.0f
 
-#define WIN_BY_PRESSING_START   1
+#define WIN_BY_PRESSING_L   1
 
-void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* definition, unsigned int playercount, unsigned char humanPlayerCount, enum LevelMetadataFlags flags) {
+void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* definition, unsigned int playercount, unsigned aiPlayerMask, enum LevelMetadataFlags flags, float aiDifficulty) {
     levelScene->definition = definition;
     dynamicSceneInit(
         &gDynamicScene, 
@@ -67,22 +60,44 @@ void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* defin
 
     //initializing player characters 
     for(unsigned i = 0; i < playercount; ++i){
-        playerInit(&levelScene->players[i], i, i, &definition->playerStartLocations[i]);
+        struct Player* player = &levelScene->players[i];
+        playerInit(player, i, i, &definition->playerStartLocations[i]);
         controlsScramblerInit(&levelScene->scramblers[i]);
-        cameraInit(&levelScene->cameras[i], 45.0f, 100.0f, 18000.0f);
-        vector3AddScaled(&levelScene->players[i].transform.position, &gForward, SCENE_SCALE * 2.0f, &levelScene->cameras[i].transform.position);
-        vector3AddScaled(&levelScene->cameras[i].transform.position, &gUp, SCENE_SCALE * 2.0f, &levelScene->cameras[i].transform.position);
+        
+        struct Camera* camera = &levelScene->cameras[i];
+        cameraInit(camera, 45.0f, 100.0f, 18000.0f);
+        struct Vector3 axisVector;
+        quatMultVector(&player->transform.rotation, &gForward, &axisVector);
+        vector3AddScaled(&player->transform.position, &axisVector, SCENE_SCALE * 2.0f, &camera->transform.position);
+        quatMultVector(&player->transform.rotation, &gUp, &axisVector);
+        vector3AddScaled(&camera->transform.position, &axisVector, SCENE_SCALE * 2.0f, &camera->transform.position);
+        camera->transform.rotation = player->transform.rotation;
+
         baseCommandMenuInit(&levelScene->baseCommandMenu[i]);
         gPlayerAtBase[i] = 0;
         
     }
+
     //initializing AI controlled characters 
-    unsigned numBots = playercount - humanPlayerCount;
+    unsigned numBots = 0;
+
+    levelScene->aiPlayerMask = aiPlayerMask;
+
+    for (unsigned i = 0; i < playercount; ++i) {
+        if (IS_PLAYER_AI(levelScene, i)) {
+            ++numBots;
+        }
+    }
+
     levelScene->botsCount = numBots;
+    unsigned botIndex = 0;
     if(numBots > 0){
         levelScene->bots = malloc(sizeof(struct AIController) * numBots);
-        for (unsigned i = humanPlayerCount; i < playercount; ++i) {
-            ai_Init(&levelScene->bots[i - humanPlayerCount], &definition->pathfinding, i, i, levelScene->baseCount);
+        for (unsigned i = 0; i < playercount; ++i) {
+            if (IS_PLAYER_AI(levelScene, i)) {
+                ai_Init(&levelScene->bots[botIndex], &definition->pathfinding, i, i, levelScene->baseCount, aiDifficulty);
+                ++botIndex;
+            }
         }
     }
     
@@ -120,22 +135,23 @@ void levelSceneInit(struct LevelScene* levelScene, struct LevelDefinition* defin
 
     itemDropsInit(&levelScene->itemDrops);
 
-    levelScene->humanPlayerCount = humanPlayerCount;
+    levelScene->humanPlayerCount = playercount - numBots;
+    levelScene->aiPlayerMask = aiPlayerMask;
 
-    gfxInitSplitscreenViewport(humanPlayerCount);
+    gfxInitSplitscreenViewport(levelScene->humanPlayerCount);
 
     levelScene->state = LevelSceneStateIntro;
     textBoxInit(&gTextBox, "Ready?", 200, SCREEN_WD / 2, SCREEN_HT / 2);
     levelScene->stateTimer = GAME_START_DELAY;
     levelScene->winningTeam = TEAM_NONE;
 
-    // dynamicMusicUseMarkers(gIntensityMarkers, sizeof(gIntensityMarkers) / sizeof(*gIntensityMarkers));
-
     osWritebackDCache(&gSplitScreenViewports[0], sizeof(gSplitScreenViewports));
 
     if (flags & LevelMetadataFlagsTutorial) {
         tutorialInit(levelScene);
     }
+
+    // soundPlayerPlay(SOUNDS_LEVELMUSIC_FERMIPARADOX, SoundPlayerFlagsLoop);
 }
 
 void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderState) {
@@ -148,9 +164,9 @@ void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderS
     spriteSetLayer(renderState, LAYER_UPGRADE_ICONS, gUseUpgradeIcons);
 
     // render minions
-    Gfx* minionGfx = renderStateAllocateDLChunk(renderState, MINION_GFX_PER_MINION * levelScene->minionCount + 2);
+    Gfx* minionGfx = renderStateAllocateDLChunk(renderState, MINION_GFX_PER_MINION * levelScene->minionCount + 3);
     Gfx* prevDL = renderStateReplaceDL(renderState, minionGfx);
-    gSPDisplayList(renderState->dl++, mat_Minion_f3d_material);
+    gSPDisplayList(renderState->dl++, gTeamTexture);
     for (unsigned int minionIndex = 0; minionIndex < levelScene->minionCount; ++minionIndex) {
         if (levelScene->minions[minionIndex].minionFlags & MinionFlagsActive) {
             minionRender(&levelScene->minions[minionIndex], renderState);
@@ -171,8 +187,9 @@ void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderS
     assert(baseEnd <= baseGfx + MINION_GFX_PER_MINION * levelScene->baseCount + 1);
 
     // render players
-    Gfx* playerGfx = renderStateAllocateDLChunk(renderState, PLAYER_GFX_PER_PLAYER * levelScene->playerCount + 3);
+    Gfx* playerGfx = renderStateAllocateDLChunk(renderState, PLAYER_GFX_PER_PLAYER * levelScene->playerCount + 4);
     prevDL = renderStateReplaceDL(renderState, playerGfx);
+    gSPDisplayList(renderState->dl++, gTeamTexture);
     for (unsigned int i = 0; i < levelScene->playerCount; ++i) {
         playerRender(&levelScene->players[i], renderState);
     }
@@ -190,26 +207,54 @@ void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderS
 
     gSPEndDisplayList(renderState->transparentDL++);
 
-    for (unsigned int i = 0; i < levelScene->humanPlayerCount; ++i) {
+    unsigned humanIndex = 0;
+
+    for (unsigned int playerIndex = 0; playerIndex < levelScene->playerCount; ++playerIndex) {
+        if (IS_PLAYER_AI(levelScene, playerIndex)) {
+            continue;
+        }
+
         gDPPipeSync(renderState->dl++);
-        Vp* viewport = &gSplitScreenViewports[i];
+        Vp* viewport = &gSplitScreenViewports[humanIndex];
         cameraSetupMatrices(
-            &levelScene->cameras[i], 
+            &levelScene->cameras[playerIndex], 
             renderState, 
             (float)viewport->vp.vscale[0] / (float)viewport->vp.vscale[1],
-            controlsScramblerGetCameraRotation(&levelScene->scramblers[i])
+            controlsScramblerGetCameraRotation(&levelScene->scramblers[playerIndex])
         );
-        renderState->cameraRotation = &levelScene->cameras[i].transform.rotation;
+        renderState->cameraRotation = &levelScene->cameras[playerIndex].transform.rotation;
         gSPViewport(renderState->dl++, osVirtualToPhysical(viewport));
+
+        unsigned short* clippingRegions = &gClippingRegions[humanIndex * 4];
+
         gDPSetScissor(
             renderState->dl++, 
             G_SC_NON_INTERLACE, 
-            gClippingRegions[i * 4 + 0],
-            gClippingRegions[i * 4 + 1],
-            gClippingRegions[i * 4 + 2],
-            gClippingRegions[i * 4 + 3]
+            clippingRegions[0],
+            clippingRegions[1],
+            clippingRegions[2],
+            clippingRegions[3]
         );
         gDPPipeSync(renderState->dl++);
+        gSPClearGeometryMode(renderState->dl++, G_ZBUFFER | G_LIGHTING | G_CULL_BOTH);
+        gDPSetRenderMode(renderState->dl++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
+
+        if (levelScene->definition->theme->skybox) {
+            Mtx* skyboxMatrix = renderStateRequestMatrices(renderState, 1);
+            struct Transform skyboxTransform;
+            skyboxTransform.position = levelScene->cameras[playerIndex].transform.position;
+            quatIdent(&skyboxTransform.rotation);
+            skyboxTransform.scale = gOneVec;
+            transformToMatrixL(&skyboxTransform, skyboxMatrix);
+            gSPMatrix(renderState->dl++, skyboxMatrix, G_MTX_MODELVIEW | G_MTX_PUSH | G_MTX_MUL);
+            gSPDisplayList(renderState->dl++, levelScene->definition->theme->skyboxMaterial);
+            gSPDisplayList(renderState->dl++, levelScene->definition->theme->skybox);
+            gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
+            gDPPipeSync(renderState->dl++);
+        }
+        
+
+        gSPSetGeometryMode(renderState->dl++, G_ZBUFFER | G_CULL_BACK);
         gDPSetRenderMode(renderState->dl++, G_RM_ZB_OPA_SURF, G_RM_ZB_OPA_SURF2);
         gSPSegment(renderState->dl++, MATRIX_TRANSFORM_SEGMENT, levelScene->decorMatrices);
         gSPDisplayList(renderState->dl++, levelScene->levelDL);
@@ -220,17 +265,25 @@ void levelSceneRender(struct LevelScene* levelScene, struct RenderState* renderS
         gSPDisplayList(renderState->dl++, renderState->transparentQueueStart);
 
         gSPDisplayList(renderState->dl++, mat_Dizzy_Dizzy);
-        for (unsigned playerIndex = 0; playerIndex < levelScene->playerCount; ++playerIndex) {
-            controlsScramblerRender(&levelScene->scramblers[playerIndex], &levelScene->players[playerIndex], renderState);
+        for (unsigned playerIndexB = 0; playerIndexB < levelScene->playerCount; ++playerIndexB) {
+            controlsScramblerRender(&levelScene->scramblers[playerIndexB], &levelScene->players[playerIndexB], renderState);
         }
         gSPDisplayList(renderState->dl++, mat_revert_Dizzy_Dizzy);
 
         baseCommandMenuRender(
-            &levelScene->baseCommandMenu[i], 
+            &levelScene->baseCommandMenu[playerIndex], 
             renderState, 
-            &gClippingRegions[i * 4]
+            clippingRegions
         );
-        playerStatusMenuRender(&levelScene->players[i], renderState, levelScene->winningTeam, levelScene->knockoutTimer < LOSE_BY_KNOCKOUT_TIME ? levelScene->knockoutTimer : -1.0f, &gClippingRegions[i * 4]);
+        playerStatusMenuRender(
+            &levelScene->players[playerIndex], 
+            renderState, 
+            levelScene->winningTeam, 
+            levelScene->knockoutTimer < LOSE_BY_KNOCKOUT_TIME ? levelScene->knockoutTimer : -1.0f, 
+            clippingRegions
+        );
+
+        ++humanIndex;
     }
 
     gSPViewport(renderState->dl++, osVirtualToPhysical(&gFullScreenVP));
@@ -270,6 +323,13 @@ void leveSceneUpdateCamera(struct LevelScene* levelScene, unsigned playerIndex) 
     }
 
     cameraUpdate(&levelScene->cameras[playerIndex], &target, 15.0f * SCENE_SCALE, 5.0f * SCENE_SCALE);
+
+    struct Vector2 camPos2d;
+    camPos2d.x = levelScene->cameras[playerIndex].transform.position.x;
+    camPos2d.y = levelScene->cameras[playerIndex].transform.position.z;
+    staticSceneConstrainToBoundaries(&levelScene->definition->staticScene, &camPos2d, 0, 0.5f * SCENE_SCALE);
+    levelScene->cameras[playerIndex].transform.position.x = camPos2d.x;
+    levelScene->cameras[playerIndex].transform.position.z = camPos2d.y;
 }
 
 unsigned short levelSceneCaluclateIntensity() {
@@ -281,17 +341,6 @@ unsigned short levelSceneCaluclateIntensity() {
         return 25;
     } else {
         return 0;
-    }
-}
-
-void levelSceneUpdateMusic(struct LevelScene* levelScene) {
-    unsigned short targetIntensity = levelSceneCaluclateIntensity();
-    unsigned short currentIntesnity = dynamicMusicGetIntensity();
-
-    if (targetIntensity < currentIntesnity) {
-        dynamicMusicSetIntensity(currentIntesnity - 1);
-    } else if (targetIntensity > currentIntesnity) {
-        dynamicMusicSetIntensity(currentIntesnity + 1);
     }
 }
 
@@ -313,18 +362,19 @@ void levelSceneCollectHumanPlayerInput(struct LevelScene* levelScene, unsigned p
         playerInputPopulateWithJoystickData(
             controllersGetControllerData(playerIndex), 
             &cameraRotation,
-            controlsScramblerIsActive(&levelScene->scramblers[playerIndex], ControlsScramblerDPADSwap) ? PlayerInputFlagsSwapJoystickAndDPad : 0,
+            0,
+            // controlsScramblerIsActive(&levelScene->scramblers[playerIndex], ControlsScramblerDPADSwap) ? PlayerInputFlagsSwapJoystickAndDPad : 0,
             playerInput
         );
     }
 }
 
-void levelSceneCollectPlayerInput(struct LevelScene* levelScene, unsigned playerIndex, struct PlayerInput* playerInput) {
+void levelSceneCollectPlayerInput(struct LevelScene* levelScene, unsigned playerIndex, unsigned botIndex, struct PlayerInput* playerInput) {
     if (levelScene->state == LevelSceneStatePlaying) {
-        if (playerIndex < levelScene->humanPlayerCount) {
+        if (!IS_PLAYER_AI(levelScene, playerIndex)) {
             levelSceneCollectHumanPlayerInput(levelScene, playerIndex, playerInput);
         } else if (!(levelScene->levelFlags & LevelMetadataFlagsTutorial)) {
-            ai_collectPlayerInput(levelScene, &levelScene->bots[playerIndex - levelScene->humanPlayerCount], playerInput);
+            ai_collectPlayerInput(levelScene, &levelScene->bots[botIndex], playerInput);
         } else {
             playerInputNoInput(playerInput);
         }
@@ -368,6 +418,29 @@ void levelSceneCollectStats(struct LevelScene* levelScene) {
 }
 
 void levelSceneUpdate(struct LevelScene* levelScene) {
+    if (levelScene->state == LevelSceneStatePaused) {
+        unsigned togglePause = 0;
+
+        for (unsigned playerIndex = 0; playerIndex < levelScene->playerCount; ++playerIndex) {
+            if (!IS_PLAYER_AI(levelScene, playerIndex) && controllerGetButtonDown(playerIndex, START_BUTTON)) {
+                togglePause = 1;
+                break;
+            }
+        }
+
+        if (togglePause) {
+            textBoxHide(&gTextBox);
+        }
+
+        if (!textBoxIsVisible(&gTextBox)) {
+            levelScene->state = LevelSceneStatePlaying;
+        }
+
+        textBoxUpdate(&gTextBox);
+        
+        return;
+    }
+
     levelSceneCollectStats(levelScene);
     levelScene->winningTeam = levelSceneFindWinningTeam(levelScene);
 
@@ -392,12 +465,22 @@ void levelSceneUpdate(struct LevelScene* levelScene) {
         }
     }
 
+    unsigned botIndex = 0;
+
+    unsigned togglePause = 0;
+
     for (unsigned playerIndex = 0; playerIndex < levelScene->playerCount; ++playerIndex) {
         struct PlayerInput* playerInput = &levelScene->scramblers[playerIndex].playerInput;
 
         controlsScramblerUpdate(&levelScene->scramblers[playerIndex]);
 
-        levelSceneCollectPlayerInput(levelScene, playerIndex, playerInput);
+        levelSceneCollectPlayerInput(levelScene, playerIndex, botIndex, playerInput);
+
+        if (IS_PLAYER_AI(levelScene, playerIndex)) {
+            ++botIndex;
+        } else if (controllerGetButtonDown(playerIndex, START_BUTTON)) {
+            togglePause = 1;
+        }
 
         if (!playerIsAlive(&levelScene->players[playerIndex])) {
             baseCommandMenuHide(&levelScene->baseCommandMenu[playerIndex]);
@@ -412,6 +495,11 @@ void levelSceneUpdate(struct LevelScene* levelScene) {
         if (levelScene->state == LevelSceneStatePlaying && levelScene->levelFlags & LevelMetadataFlagsTutorial) {
             tutorialUpdate(levelScene, playerInput);
         }
+    }
+
+    if (togglePause && levelScene->state == LevelSceneStatePlaying) {
+        levelScene->state = LevelSceneStatePaused;
+        textBoxInit(&gTextBox, "Paused", 200, SCREEN_WD / 2, SCREEN_HT / 2);
     }
 
     if (levelScene->state == LevelSceneStateIntro) {
@@ -451,7 +539,6 @@ void levelSceneUpdate(struct LevelScene* levelScene) {
     itemDropsUpdate(&levelScene->itemDrops);
 
     dynamicSceneCollide();
-    levelSceneUpdateMusic(levelScene);
     textBoxUpdate(&gTextBox);
 }
 
@@ -510,9 +597,9 @@ int levelSceneFindWinningTeam(struct LevelScene* levelScene) {
         return levelScene->winningTeam;
     }
 
-#if WIN_BY_PRESSING_START
+#if WIN_BY_PRESSING_L
     for (unsigned i = 0; i < levelScene->playerCount; ++i) {
-        if (controllerGetButtonDown(i, START_BUTTON)) {
+        if (controllerGetButtonDown(i, L_TRIG)) {
             return i;
         }
     }

@@ -7,6 +7,7 @@ extern Gfx Mars_Crate[];
 extern Gfx Mars_Ground[];
 extern Gfx Mars_Metal[];
 extern Gfx Mars_Rock[];
+extern Gfx Mars_SSSkybox[];
 extern Gfx Mars_SetTextures1[];
 
 extern Gfx Mars_Rock004DisplayList[];
@@ -20,6 +21,7 @@ extern Gfx Mars_DishBaseDisplayList[];
 extern Gfx Mars_DishDisplayList[];
 extern Gfx Mars_Broken_BaseDisplayList[];
 extern Gfx Mars_ConsolesDisplayList[];
+extern Gfx Mars_SkyboxDisplayList[];
 #define BROKEN_BASE_DECOR_ID 9
 #define CONSOLEB_DECOR_ID 4
 #define CONSOLES_DECOR_ID 10

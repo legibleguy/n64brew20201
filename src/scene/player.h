@@ -16,9 +16,11 @@
 #include "damagehandler.h"
 #include "faction.h"
 
-#define PLAYER_GFX_PER_PLAYER   7
+#define PLAYER_GFX_PER_PLAYER   8
 
 #define PLAYER_DEFENSE_RADIUS  10.0f
+
+#define PLAYER_COLLIDER_RADIOUS (0.5f * SCENE_SCALE)
 
 struct Player;
 
@@ -50,7 +52,11 @@ struct Player {
     struct DamageHandler damageHandler;
     float stateTimer;
     float animationSpeed;
+    struct TeamEntity *touchedBy;
+    struct TeamEntity *aiTarget;
 };
+
+int aiAttackPriority(struct TeamEntity* target);
 
 void playerInit(struct Player* player, unsigned playerIndex, unsigned team, struct Vector2* at);
 void playerUpdate(struct Player* player, struct PlayerInput* input);

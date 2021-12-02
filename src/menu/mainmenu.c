@@ -115,7 +115,7 @@ void mainMenuFactionUpdate(struct MainMenuFactionSelector* faction, unsigned ind
 
         faction->rotateLerp = mathfMoveTowards(faction->rotateLerp, 0.0f, gTimeDelta / SELECT_SPIN_TIME);
         
-        if (controllerGetButtonDown(index, A_BUTTON)) {
+        if (controllerGetButtonDown(index, A_BUTTON) || (faction->flags & MainMenuFactionFlagsAI) != 0) {
             soundPlayerPlay(SOUNDS_UI_SELECT, 0);
             faction->flags |= MainMenuFactionFlagsSelected;
             skAnimatorRunClip(
@@ -159,13 +159,23 @@ void mainMenuFactionUpdate(struct MainMenuFactionSelector* faction, unsigned ind
  
 void mainMenuStartLevel(struct MainMenu* mainMenu) {
     struct GameConfiguration gameConfig;
-    gameConfig.humanPlayerCount = mainMenuGetPlayerCount(mainMenu);
+    gameConfig.playerCount = mainMenuGetPlayerCount(mainMenu);
 
-    if (gameConfig.humanPlayerCount == 1) {
-        gameConfig.playerCount = mainMenu->filteredLevels[mainMenu->selections.selectedLevel]->maxPlayers;
-    } else {
-        gameConfig.playerCount = gameConfig.humanPlayerCount;
+    unsigned aiPlayerMask = 0;
+
+    for (unsigned i = 0; i < mainMenu->filteredLevels[mainMenu->selections.selectedLevel]->maxPlayers; ++i) {
+        if ((mainMenu->factionSelection[i].flags & MainMenuFactionFlagsAI) != 0 ||
+            i >= gameConfig.playerCount || 
+            !controllerIsConnected(i)) {
+            aiPlayerMask |= (1 << i);
+        }
     }
+
+    if (gameConfig.playerCount == 1) {
+        gameConfig.playerCount = mainMenu->filteredLevels[mainMenu->selections.selectedLevel]->maxPlayers;
+    }
+
+    gameConfig.aiPlayerMask = aiPlayerMask;
 
     gameConfig.level = mainMenu->filteredLevels[mainMenu->selections.selectedLevel];
 
@@ -183,7 +193,11 @@ void mainMenuEnterFactionSelection(struct MainMenu* mainMenu) {
     gfxInitSplitscreenViewport(mainMenuGetPlayerCount(mainMenu));
 
     for (unsigned i = 0; i < mainMenuGetPlayerCount(mainMenu); ++i) {
-        mainMenu->factionSelection->flags = controllerIsConnected(i) ? 0 : MainMenuFactionFlagsAI;
+        mainMenu->factionSelection[i].flags = controllerIsConnected(i) ? 0 : MainMenuFactionFlagsAI;
+    }
+
+    for (unsigned i = mainMenuGetPlayerCount(mainMenu); i < MAX_PLAYERS; ++i) {
+        mainMenu->factionSelection[i].flags = MainMenuFactionFlagsAI;
     }
 }
 
@@ -194,6 +208,11 @@ void mainMenuLoadWireframe(struct MainMenu* mainMenu, struct WireframeMetadata* 
     } else {
         mainMenu->showingWireframe = gLevelplaceholder_mesh;
     }
+}
+
+void mainMenuEnterPlayerSelection(struct MainMenu* mainMenu) {
+    mainMenu->selections.menuState = MainMenuStateSelectingPlayerCount;
+    mainMenu->selections.targetMenuState = MainMenuStateSelectingPlayerCount;
 }
 
 void mainMenuEnterLevelSelection(struct MainMenu* mainMenu) {
@@ -220,8 +239,8 @@ void mainMenuEnterLevelSelection(struct MainMenu* mainMenu) {
 }
 
 void mainMenuInitSelections(struct MainMenu* mainMenu) {
-    mainMenu->selections.menuState = MainMenuStateSelectingPlayerCount;
-    mainMenu->selections.targetMenuState = MainMenuStateSelectingPlayerCount;
+    mainMenu->selections.menuState = MainMenuStateSelectingTitleScreen;
+    mainMenu->selections.targetMenuState = MainMenuStateSelectingTitleScreen;
 
     mainMenu->selections.selectedPlayerCount = 0;
     mainMenu->selections.selectedLevel = 0;
@@ -236,6 +255,7 @@ void mainMenuInit(struct MainMenu* mainMenu) {
     mainMenu->showingWireframe = 0;
     mainMenu->showWireframeDelay = 0;
     initKickflipFont();
+    titleScreenInit(&mainMenu->titleScreen);
 
     for (unsigned i = 0; i < MAX_PLAYERS; ++i) {
         mainMenuFactionInit(&mainMenu->factionSelection[i], i);
@@ -363,6 +383,11 @@ void mainMenuUpdate(struct MainMenu* mainMenu) {
     quatMultiply(&axisTilt, &axisSpin, &mainMenu->marsTransform.rotation);
 
     switch (mainMenu->selections.menuState) {
+        case MainMenuStateSelectingTitleScreen:
+            if (titleScreenUpdate(&mainMenu->titleScreen)) {
+                mainMenuEnterPlayerSelection(mainMenu);
+            }
+            break;
         case MainMenuStateSelectingPlayerCount:
             mainMenuUpdatePlayerCount(mainMenu);
             break;
@@ -376,7 +401,12 @@ void mainMenuUpdate(struct MainMenu* mainMenu) {
             break;
         case MainMenuStatePostGame:
             if (endGameMenuUpdate(&mainMenu->endGameMenu)) {
-                mainMenuEnterLevelSelection(mainMenu);
+                if (mainMenu->selections.selectedPlayerCount == 0 && mainMenu->selections.selectedLevel == mainMenu->levelCount) {
+                    sceneQueueCredits();
+                } else {
+                    gfxInitSplitscreenViewport(mainMenuGetPlayerCount(mainMenu));
+                    mainMenuEnterLevelSelection(mainMenu);
+                }
             }
             break;
     }
@@ -429,26 +459,39 @@ void mainMenuRenderFactions(struct MainMenu* mainMenu, struct RenderState* rende
             0.0f
         );
         gSPViewport(renderState->dl++, osVirtualToPhysical(viewport));
+
+        unsigned short* clippingRegion = &gClippingRegions[i * 4];
+
         gDPSetScissor(
             renderState->dl++, 
             G_SC_NON_INTERLACE, 
-            gClippingRegions[i * 4 + 0],
-            gClippingRegions[i * 4 + 1],
-            gClippingRegions[i * 4 + 2],
-            gClippingRegions[i * 4 + 3]
+            clippingRegion[0],
+            clippingRegion[1],
+            clippingRegion[2],
+            clippingRegion[3]
         );
         gDPPipeSync(renderState->dl++);
         
         Mtx* playerMatrix = renderStateRequestMatrices(renderState, 1);
         transformToMatrixL(&mainMenu->factionSelection[i].transform, playerMatrix);
         gSPMatrix(renderState->dl++, playerMatrix, G_MTX_MODELVIEW | G_MTX_PUSH | G_MTX_MUL);
-        gSPDisplayList(renderState->dl++, gTeamPalleteTexture[i]);
+        gDPSetTexturePersp(renderState->dl++, G_TP_PERSP);
+        gSPDisplayList(renderState->dl++, gTeamTexture);
+        gDPUseTeamPallete(renderState->dl++, i, 1);
+        gDPSetRenderMode(renderState->dl++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
         skRenderObject(&mainMenu->factionSelection[i].armature, renderState);
         gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
 
         if (!(mainMenu->factionSelection[i].flags & MainMenuFactionFlagsSelected)) {
             isReady = 0;
         }
+
+        unsigned midY = (clippingRegion[1] + clippingRegion[3]) / 2;
+
+        unsigned srcOffset = (mainMenu->factionSelection[i].flags & MainMenuFactionFlagsSelected) ? 32 : 0;
+
+        graphicsCopyImage(renderState, ArrowButtons_0_0, 32, 64, 0, 16 + srcOffset, clippingRegion[0] + 24, midY - 8, 16, 16, gColorWhite);
+        graphicsCopyImage(renderState, ArrowButtons_0_0, 32, 64, 16, 16 + srcOffset, clippingRegion[2] - 40, midY - 8, 16, 16, gColorWhite);
     }
 
     gSPViewport(renderState->dl++, osVirtualToPhysical(&gFullScreenVP));
@@ -498,6 +541,9 @@ void mainMenuRenderLevels(struct MainMenu* mainMenu, struct RenderState* renderS
         gSPPopMatrix(renderState->dl++, G_MTX_MODELVIEW);
     }
 
+    graphicsCopyImage(renderState, ArrowButtons_0_0, 32, 64, 0, 16 + (mainMenu->selections.selectedLevel == 0 ? 32 : 0), 24, SCREEN_HT / 2 - 8, 16, 16, gColorWhite);
+    graphicsCopyImage(renderState, ArrowButtons_0_0, 32, 64, 16, 16 + (mainMenu->selections.selectedLevel + 1 >= mainMenu->levelCount ? 32 : 0), SCREEN_WD - 40, SCREEN_HT / 2 - 8, 16, 16, gColorWhite);
+
     if (mainMenu->selections.selectedPlayerCount == 0 && saveFileIsLevelComplete(mainMenu->selections.selectedLevel)) {
         char timeString[16];
         renderTimeString(saveFileLevelTime(mainMenu->selections.selectedLevel), timeString);
@@ -536,6 +582,9 @@ void mainMenuRender(struct MainMenu* mainMenu, struct RenderState* renderState) 
     gDPSetRenderMode(renderState->dl++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
 
     switch (mainMenu->selections.menuState) {
+        case MainMenuStateSelectingTitleScreen:
+            titleScreenRender(&mainMenu->titleScreen, renderState);
+            break;
         case MainMenuStateSelectingPlayerCount:
             mainMenuRenderPlayerCount(mainMenu, renderState);
             break;
