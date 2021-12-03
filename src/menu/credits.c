@@ -29,32 +29,11 @@ Gfx gCreditsSolidColor[] = {
 };
 
 void creditsInit(struct Credits* credits) {
-<<<<<<< HEAD
-    credits->offset = -SCREEN_HT;//0.f;
-
-=======
     credits->offset = -SCREEN_HT;
->>>>>>> d16d455dd1a2f6f74dc5e60b3ce77ef6cc6ae707
     initKickflipFont();
 }
 
 void creditsUpdate(struct Credits* credits) {
-<<<<<<< HEAD
-
-}
-
-void drawTitle(struct RenderState* renderState, unsigned offset){
-    char* title1 = "mission";
-    char* title2 = "lost control";
-    unsigned message1X = (SCREEN_WD - fontMeasure(&gKickflipFont, title1, 1)) >> 1;
-    unsigned message2X = (SCREEN_WD - fontMeasure(&gKickflipFont, title2, 0)) >> 1;
-    fontRenderText(renderState, &gKickflipFont, title1, message1X-24, 14 - offset, 1);
-    fontRenderText(renderState, &gKickflipFont, title2, message2X+12, 45 - offset, 0);
-}
-
-void drawDiscordLogo(struct RenderState* renderState, unsigned offset){
-    graphicsCopyImage(renderState, discordlogo_img, 32, 32, 0, 0, SCREEN_WD/2 - 16, /*(86+16+61 + 48*4)*/85 - offset, 32, 32, gColorWhite);
-=======
     if(controllerGetButtonDown(0, B_BUTTON)) sceneQueueMainMenu();
 
     if(!(controllerGetLastButton(0) & A_BUTTON)){
@@ -95,39 +74,20 @@ void drawTitle(struct RenderState* renderState, unsigned offset){
 
 void drawDiscordLogo(struct RenderState* renderState, unsigned offset){
     graphicsCopyImage(renderState, discordlogo_img, 96, 96, 0, 0, SCREEN_WD/2 - 48, LOGO_START - offset, 96, 96, gColorWhite);
->>>>>>> d16d455dd1a2f6f74dc5e60b3ce77ef6cc6ae707
 }
 
 void drawRoles(struct RenderState* renderState, unsigned offset){
     char* roles[] = {"Art and Graphics", "Music and SFX", "Programming"};
 
     for(unsigned i = 0; i < 3; ++i){
-<<<<<<< HEAD
-        fontRenderText(renderState, &gKickflipFont, roles[i], 36, (126 + 48*i) - offset, -1);
-    }
-    fontRenderText(renderState, &gKickflipFont, "Special Thanks", 36, (125+16+18 + 48*3) - offset, -1);
-=======
         fontRenderText(renderState, &gKickflipFont, roles[i], 36, (TEXT_START + 48*i) - offset, -1);
     }
     fontRenderText(renderState, &gKickflipFont, "Special Thanks", 36, (TEXT_START+16+18 + 48*3) - offset, -1);
->>>>>>> d16d455dd1a2f6f74dc5e60b3ce77ef6cc6ae707
 }
 
 void drawNames(struct RenderState* renderState, unsigned offset){
     char* names[] = {"SapphireTactics", "jtn191", "lambertjamesd"};
     for(unsigned i = 0; i < 3; ++i){
-<<<<<<< HEAD
-        fontRenderText(renderState, &gKickflipFont, names[i], 39, (126+16 + 48*i) - offset, 0);
-    }
-    fontRenderText(renderState, &gKickflipFont, "whatswithandy", 39, (125+16+25 + 48*2) - offset, 0);
-    fontRenderText(renderState, &gKickflipFont, "CrashOverride95", 39, (125+16+33 + 48*3) - offset, 0);
-}
-
-void drawGameJamNote(struct RenderState* renderState, unsigned offset){
-    fontRenderText(renderState, &gKickflipFont, "made for", 36, (125+16+24 + 48*4) - offset, 0);
-    fontRenderText(renderState, &gKickflipFont, "2021 n64brew", 36, (125+16+43 + 48*4) - offset, 0);
-    fontRenderText(renderState, &gKickflipFont, "gamejam", 36, (125+16+61 + 48*4) - offset, 0);
-=======
         fontRenderText(renderState, &gKickflipFont, names[i], 39, (TEXT_START+16 + 48*i) - offset, 0);
     }
     fontRenderText(renderState, &gKickflipFont, "whatswithandy", 39, (TEXT_START+16+25 + 48*2) - offset, 0);
@@ -138,7 +98,6 @@ void drawGameJamNote(struct RenderState* renderState, unsigned offset){
     fontRenderText(renderState, &gKickflipFont, "made for", 36, (TEXT_START+16+24 + 48*4) - offset, 0);
     fontRenderText(renderState, &gKickflipFont, "2021 n64brew", 36, (TEXT_START+16+43 + 48*4) - offset, 0);
     fontRenderText(renderState, &gKickflipFont, "gamejam", 36, (TEXT_START+16+61 + 48*4) - offset, 0);
->>>>>>> d16d455dd1a2f6f74dc5e60b3ce77ef6cc6ae707
 }
 
 void creditsRender(struct Credits* credits, struct RenderState* renderState) {
@@ -146,17 +105,8 @@ void creditsRender(struct Credits* credits, struct RenderState* renderState) {
     spriteSetLayer(renderState, LAYER_KICKFLIP_NUMBERS_FONT, gUseKickflipNumbersFont);
     spriteSetLayer(renderState, LAYER_KICKFLIP_FONT, gUseKickflipFont);
 
-<<<<<<< HEAD
-    if(controllerGetButtonDown(0, B_BUTTON)) sceneQueueCredits();
-
-    if(!controllerGetButtonDown(0, A_BUTTON)){
-        if(credits->offset >= SCREEN_HT*1.775) credits->offset = -SCREEN_HT;
-        else credits->offset += SCROLL_SPEED;
-    }
-=======
     graphicsCopyImage(renderState, gMenuBackground, SCREEN_WD, SCREEN_HT, 0, 0, 0, 0, SCREEN_WD, SCREEN_HT, gColorWhite);
     gDPSetTexturePersp(renderState->dl++, G_TP_PERSP);
->>>>>>> d16d455dd1a2f6f74dc5e60b3ce77ef6cc6ae707
 
     drawTitle(renderState, credits->offset);
     drawDiscordLogo(renderState, credits->offset);
@@ -164,9 +114,5 @@ void creditsRender(struct Credits* credits, struct RenderState* renderState) {
     drawNames(renderState, credits->offset);
     drawGameJamNote(renderState, credits->offset);
 
-<<<<<<< HEAD
-
-=======
->>>>>>> d16d455dd1a2f6f74dc5e60b3ce77ef6cc6ae707
     spriteFinish(renderState);
 }

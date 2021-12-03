@@ -54,6 +54,7 @@ struct PlayerFactionSounds {
     struct SoundList deathSounds;
     struct SoundList jumpSounds;
     struct SoundList idleSounds;
+    struct SoundList walkSounds;
     unsigned short walkSound;
 };
 

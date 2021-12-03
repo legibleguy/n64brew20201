@@ -135,7 +135,7 @@ static void gameproc(void *argv)
 
                 gUpdateTime = osGetTime() - updateTimeStart;
 
-                gdbHeartbeat();
+                //gdbHeartbeat();
 
                 break;
 
@@ -200,7 +200,6 @@ static void initGame(void)
     initAudio();
     soundPlayerInit();
     sceneQueueMainMenu();
-    //sceneQueueCredits();
 
 #ifdef WITH_DEBUGGER
     OSThread* debugThreads[2];
@@ -208,4 +207,3 @@ static void initGame(void)
     gdbInitDebugger(gPiHandle, &dmaMessageQ, debugThreads, 1);
 #endif
 }
-

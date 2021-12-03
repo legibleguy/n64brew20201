@@ -484,6 +484,7 @@ void levelSceneUpdate(struct LevelScene* levelScene) {
 
         if (!playerIsAlive(&levelScene->players[playerIndex])) {
             baseCommandMenuHide(&levelScene->baseCommandMenu[playerIndex]);
+            if()
         }
 
         controlsScramblerApply(&levelScene->scramblers[playerIndex]);

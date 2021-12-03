@@ -116,7 +116,7 @@ void mainMenuFactionUpdate(struct MainMenuFactionSelector* faction, unsigned ind
         faction->rotateLerp = mathfMoveTowards(faction->rotateLerp, 0.0f, gTimeDelta / SELECT_SPIN_TIME);
         
         if (controllerGetButtonDown(index, A_BUTTON) || (faction->flags & MainMenuFactionFlagsAI) != 0) {
-            soundPlayerPlay(SOUNDS_UI_SELECT, 0);
+            soundPlayerPlay(SOUNDS_UI_SELECT2, 0);
             faction->flags |= MainMenuFactionFlagsSelected;
             skAnimatorRunClip(
                 &faction->animator, 
@@ -133,7 +133,7 @@ void mainMenuFactionUpdate(struct MainMenuFactionSelector* faction, unsigned ind
         }
     } else {
         if (controllerGetButtonDown(index, B_BUTTON)) {
-            soundPlayerPlay(SOUNDS_UI_SELECT, 0);
+            soundPlayerPlay(SOUNDS_UI_SELECT3, 0);
             faction->flags &= ~MainMenuFactionFlagsSelected;
 
             skAnimatorRunClip(
@@ -287,7 +287,7 @@ void mainMenuUpdatePlayerCount(struct MainMenu* mainMenu) {
     }
 
     if (controllerGetButtonDown(0, A_BUTTON)) {
-        soundPlayerPlay(SOUNDS_UI_SELECT, 0);
+        soundPlayerPlay(SOUNDS_UI_SELECT2, 0);
         mainMenuEnterFactionSelection(mainMenu);
     }
 }
@@ -296,7 +296,7 @@ void mainMenuUpdateFaction(struct MainMenu* mainMenu) {
     unsigned isReady = 1;
 
     if ((mainMenu->factionSelection[0].flags & MainMenuFactionFlagsSelected) == 0 && controllerGetButtonDown(0, B_BUTTON)) {
-        soundPlayerPlay(SOUNDS_UI_SELECT, 0);
+        soundPlayerPlay(SOUNDS_UI_SELECT3, 0);
         mainMenu->selections.menuState = MainMenuStateSelectingPlayerCount;
     }
 
@@ -309,7 +309,7 @@ void mainMenuUpdateFaction(struct MainMenu* mainMenu) {
     }
 
     if (isReady && controllerGetButtonDown(0, A_BUTTON)) {
-        soundPlayerPlay(SOUNDS_UI_SELECT, 0);
+        soundPlayerPlay(SOUNDS_UI_SELECT2, 0);
         mainMenuEnterLevelSelection(mainMenu);
     }
 }
@@ -363,13 +363,13 @@ void mainMenuUpdateLevelSelect(struct MainMenu* mainMenu) {
     }
 
     if (controllerGetButtonDown(0, A_BUTTON) && mainMenuIsLevelUnlocked(mainMenu)) {
-        soundPlayerPlay(SOUNDS_UI_SELECT, 0);
+        soundPlayerPlay(SOUNDS_UI_SELECT2, 0);
         mainMenu->selections.targetMenuState = MainMenuStateStarting;
         textBoxHide(&gTextBox);
     }
 
     if (controllerGetButtonDown(0, B_BUTTON)) {
-        soundPlayerPlay(SOUNDS_UI_SELECT, 0);
+        soundPlayerPlay(SOUNDS_UI_SELECT3, 0);
         mainMenu->selections.targetMenuState = MainMenuStateSelectingFaction;
         textBoxHide(&gTextBox);
     }
