@@ -66,7 +66,8 @@ void playerAttackOverlap(struct DynamicSceneOverlap* overlap) {
     if ((overlap->otherEntry->flags & DynamicSceneEntryHasTeam) != 0 && player->attackInfo) {
         struct TeamEntity* entityB = (struct TeamEntity*)overlap->otherEntry->data;
         teamEntityApplyDamage(entityB, player->attackInfo->damage);
-        soundPlayerPlay(SOUNDS_PUNCHIMPACT,0);
+        soundPlayerPlay(SOUNDS_PUNCH,0);
+        soundPlayerSetVolume(SOUNDS_PUNCH, 0.75);
     }
 }
 
@@ -123,7 +124,10 @@ void playerEnterDeadState(struct Player* player) {
     // should start attacking nearest target
     levelSceneIssueMinionCommand(&gCurrentLevel, player->playerIndex, MinionCommandAttack);
     playerEndAttack(player);
-    soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.deathSounds), 0);
+    int deathSound = soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.deathSounds);
+    soundPlayerPlay(deathSound, 0);
+    soundPlayerSetVolume(deathSound, 0.25);
+    
     //soundPlayerPlay(SOUNDS_DEATHSFX, 0);
     skAnimatorRunClip(&player->animator, factionGetAnimation(player->team.teamNumber, PlayerAnimationDie), 0);
     player->state = playerStateDead;
@@ -520,22 +524,12 @@ void playerStateWalk(struct Player* player, struct PlayerInput* input) {
     else if (isMoving != hasWalkingSound) {
         if (isMoving) {
             player->walkSoundEffect = soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.walkSounds), 0);
-            soundPlayerSetVolume(player->walkSoundEffect, 0.25f);
+            soundPlayerSetVolume(player->walkSoundEffect, 0.22f);
             player->footstepTimer = PLAYER_FOOTSTEP_LEN;
         } else {
             soundPlayerStop(&player->walkSoundEffect);
         }
     }
-
-    // int hasIdleSound = player->idleSoundEffect != SOUND_ID_NONE;
-
-    // if (isMoving == hasIdleSound) {
-    //     if (isMoving) {
-    //         soundPlayerStop(&player->idleSoundEffect);
-    //     } else {
-    //         player->idleSoundEffect = soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.idleSounds), SoundPlayerFlagsLoop);
-    //     }
-    // }
 
     playerUpdateOther(player, input);
 }
@@ -588,7 +582,9 @@ void playerRender(struct Player* player, struct RenderState* renderState) {
 void playerApplyDamage(struct Player* player, float amount) {
     if (player->transform.position.y < INVINCIBLE_JUMP_HEIGHT) {
         if (damageHandlerApplyDamage(&player->damageHandler, amount, PLAYER_INVINCIBILITY_TIME)) {
-            soundPlayerPlay(soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.damageSounds), 0);
+            int targetSound = soundListRandom(&gTeamFactions[player->playerIndex]->playerSounds.damageSounds);
+            soundPlayerPlay(targetSound, 0);
+            soundPlayerSetVolume(targetSound, 0.35);
         }
     }
 }

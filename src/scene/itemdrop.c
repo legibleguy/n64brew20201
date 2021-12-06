@@ -75,6 +75,7 @@ void itemDropCollide(struct DynamicSceneOverlap* overlap) {
             if (entity->entityType == TeamEntityTypePlayer) {
                 drop->state = ItemDropStateCollected;
                 levelSceneApplyScrambler(&gCurrentLevel, entity->teamNumber, randomInRange(0, ControlsScramblerTypeCount));
+                soundPlayerPlay(SOUNDS_POWERUP_PICKUP, 0);
             }
 
             break;
